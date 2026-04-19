@@ -33,16 +33,18 @@ export const EnvelopeLoader = () => {
                 }}
                 initial={{ rotateX: 0 }}
                 animate={{ rotateX: 180 }}
-                transition={{ delay: 0.8, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ delay: 1.0, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
               />
-              <motion.div
-                className="absolute top-12 left-1/2 -translate-x-1/2 w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl shadow-petal"
-                initial={{ y: 0, opacity: 1 }}
-                animate={{ y: -30, opacity: 0 }}
-                transition={{ delay: 1.3, duration: 0.5 }}
-              >
-                ♥
-              </motion.div>
+              <div className="absolute top-10 left-1/2 -translate-x-1/2">
+                <motion.div
+                  className="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl shadow-petal"
+                  initial={{ y: 0, opacity: 1 }}
+                  animate={{ y: -30, opacity: 0 }}
+                  transition={{ delay: 0.55, duration: 0.45 }}
+                >
+                  <span className="-ml-[1px]">♥</span>
+                </motion.div>
+              </div>
             </motion.div>
             <motion.p
               className="font-hand text-2xl text-ink-soft mt-6"
