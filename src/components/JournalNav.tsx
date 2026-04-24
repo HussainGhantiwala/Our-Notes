@@ -5,11 +5,11 @@ import { useAuth } from "@/hooks/useAuth";
 const links = [
   { to: "/", label: "home" },
   { to: "/chapters", label: "chapters" },
-  { to: "/gallery", label: "memories" },
-  { to: "/bouquet", label: "bouquet" },
-  { to: "/notes", label: "notes" },
-  { to: "/letters", label: "letters" },
-  { to: "/secret", label: "secret" },
+  // { to: "/gallery", label: "memories" },
+  // { to: "/bouquet", label: "bouquet" },
+  // { to: "/notes", label: "notes" },
+  // { to: "/letters", label: "letters" },
+  // { to: "/secret", label: "secret" },
 ];
 
 export const JournalNav = () => {
@@ -26,9 +26,8 @@ export const JournalNav = () => {
 
   return (
     <header
-      className={`fixed top-0 inset-x-0 z-40 transition-all duration-500 ${
-        scrolled ? "py-2 bg-background/80 backdrop-blur-sm shadow-paper" : "py-4 bg-transparent"
-      }`}
+      className={`fixed top-0 inset-x-0 z-40 transition-all duration-500 ${scrolled ? "py-2 bg-background/80 backdrop-blur-sm shadow-paper" : "py-4 bg-transparent"
+        }`}
     >
       <nav className="container flex items-center justify-between gap-4">
         <NavLink to="/" className="font-script text-2xl md:text-3xl text-ink shrink-0">
@@ -40,8 +39,7 @@ export const JournalNav = () => {
               <NavLink
                 to={l.to}
                 className={({ isActive }) =>
-                  `px-3 py-1.5 rounded-full transition-all hover:text-ink ${
-                    isActive ? "bg-blush/60 text-ink" : ""
+                  `px-3 py-1.5 rounded-full transition-all hover:text-ink ${isActive ? "bg-blush/60 text-ink" : ""
                   }`
                 }
               >
