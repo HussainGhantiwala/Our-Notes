@@ -12,6 +12,8 @@ import { FloatingPetals } from "@/components/FloatingPetals";
 import { ScrapbookSpread } from "@/components/scrapbook/ScrapbookSpread";
 import { AddOnsPanel } from "@/components/scrapbook/AddOnsPanel";
 import { SmartImage } from "@/components/scrapbook/SmartImage";
+import { SpotifySearchModal } from "@/components/scrapbook/SpotifySearchModal";
+import type { SpotifyTrack } from "@/lib/spotify";
 import { toast } from "sonner";
 
 const MOODS = ["🌸", "💌", "✨", "🌙", "☕", "🌿"];
@@ -33,6 +35,7 @@ const AdminChapterEditor = () => {
   const [activePageId, setActivePageId] = useState<string | null>(null);
   const [imageLib, setImageLib] = useState<{ url: string; id: string }[]>([]);
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
+  const [showSpotifyModal, setShowSpotifyModal] = useState(false);
 
   const pagesRef = useRef(pages);
   useEffect(() => { pagesRef.current = pages; }, [pages]);
@@ -344,7 +347,7 @@ const AdminChapterEditor = () => {
                 )}
               </div>
 
-              <AddOnsPanel onAdd={(t) => addToCanvas.current.left?.(t)} />
+              <AddOnsPanel onAdd={(t) => addToCanvas.current.left?.(t)} onAddMusic={() => setShowSpotifyModal(true)} />
             </aside>
 
             {/* Notebook + page nav */}
@@ -400,6 +403,29 @@ const AdminChapterEditor = () => {
           </motion.div>
         </div>
       </main>
+
+      <SpotifySearchModal
+        open={showSpotifyModal}
+        onClose={() => setShowSpotifyModal(false)}
+        onSelect={(track: SpotifyTrack) => {
+          addToCanvas.current.left?.("music" as ElementType, {
+            content: track.name,
+            image_url: track.albumArt,
+            width: 260,
+            height: 300,
+            rotation: -2,
+            style: {
+              artist_name: track.artist,
+              album_name: track.albumName,
+              spotify_url: track.spotifyUrl,
+              preview_url: track.previewUrl,
+              original_album_art: track.albumArt,
+            },
+          });
+          setShowSpotifyModal(false);
+          toast.success("Music card added ✿");
+        }}
+      />
     </>
   );
 };

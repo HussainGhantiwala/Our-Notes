@@ -3,7 +3,7 @@ import type { ElementType } from "@/lib/chapters";
 export interface ElementSpec {
   type: ElementType;
   label: string;
-  category: "sticky" | "tape" | "sticker" | "frame" | "text";
+  category: "sticky" | "tape" | "sticker" | "frame" | "text" | "music";
   defaultWidth: number;
   defaultHeight: number;
   defaultRotation: number;
@@ -35,7 +35,10 @@ export const ELEMENT_LIBRARY: ElementSpec[] = [
   { type: "highlight", label: "highlight strip", category: "frame", defaultWidth: 200, defaultHeight: 32, defaultRotation: 0, defaultContent: "remember this", glyph: "🖍️" },
   { type: "polaroid",  label: "polaroid frame",  category: "frame", defaultWidth: 180, defaultHeight: 210, defaultRotation: -3, defaultContent: "caption…", glyph: "📷" },
   { type: "text",      label: "handwritten quote", category: "text", defaultWidth: 220, defaultHeight: 90, defaultRotation: -2, defaultContent: "you are my favorite hello…", glyph: "✍️" },
+
+  { type: "music",     label: "music card",        category: "music", defaultWidth: 260, defaultHeight: 300, defaultRotation: -2, glyph: "🎵" },
 ];
 
 export const isSticky = (t: ElementType) => t.startsWith("sticky-");
 export const isTape   = (t: ElementType) => t.startsWith("tape-");
+export const isMusic  = (t: ElementType) => t === "music";
