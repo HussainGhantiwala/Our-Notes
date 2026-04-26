@@ -14,6 +14,7 @@ import { AddOnsPanel } from "@/components/scrapbook/AddOnsPanel";
 import { SmartImage } from "@/components/scrapbook/SmartImage";
 import { SpotifySearchModal } from "@/components/scrapbook/SpotifySearchModal";
 import type { SpotifyTrack } from "@/lib/spotify";
+import { fetchLyrics } from "@/lib/spotify";
 import { toast } from "sonner";
 
 const MOODS = ["🌸", "💌", "✨", "🌙", "☕", "🌿"];
@@ -35,7 +36,7 @@ const AdminChapterEditor = () => {
   const [activePageId, setActivePageId] = useState<string | null>(null);
   const [imageLib, setImageLib] = useState<{ url: string; id: string }[]>([]);
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
-  const [showSpotifyModal, setShowSpotifyModal] = useState(false);
+  const [spotifyModalMode, setSpotifyModalMode] = useState<"music" | "lyric_card" | null>(null);
 
   const pagesRef = useRef(pages);
   useEffect(() => { pagesRef.current = pages; }, [pages]);
@@ -152,7 +153,7 @@ const AdminChapterEditor = () => {
     if (upErr) { toast.error(upErr.message); return null; }
     const { data: pub } = supabase.storage.from("chapter-media").getPublicUrl(path);
     const url = pub.publicUrl;
-    try { const img = await addChapterImage(c.id, url, path); setImageLib((l) => [{ url, id: img.id }, ...l]); } catch {}
+    try { const img = await addChapterImage(c.id, url, path); setImageLib((l) => [{ url, id: img.id }, ...l]); } catch { }
     return url;
   };
 
@@ -278,10 +279,10 @@ const AdminChapterEditor = () => {
                       style={{
                         background:
                           p === "blush" ? "hsl(350 70% 92%)" :
-                          p === "lavender" ? "hsl(265 50% 92%)" :
-                          p === "peach" ? "hsl(20 70% 90%)" :
-                          p === "sage" ? "hsl(120 25% 85%)" :
-                          "hsl(210 40% 90%)",
+                            p === "lavender" ? "hsl(265 50% 92%)" :
+                              p === "peach" ? "hsl(20 70% 90%)" :
+                                p === "sage" ? "hsl(120 25% 85%)" :
+                                  "hsl(210 40% 90%)",
                       }} />
                   ))}
                 </div>
@@ -347,7 +348,11 @@ const AdminChapterEditor = () => {
                 )}
               </div>
 
-              <AddOnsPanel onAdd={(t) => addToCanvas.current.left?.(t)} onAddMusic={() => setShowSpotifyModal(true)} />
+              <AddOnsPanel
+                onAdd={(t) => addToCanvas.current.left?.(t)}
+                onAddMusic={() => setSpotifyModalMode("music")}
+                onAddLyricCard={() => setSpotifyModalMode("lyric_card")}
+              />
             </aside>
 
             {/* Notebook + page nav */}
@@ -393,6 +398,13 @@ const AdminChapterEditor = () => {
                     onUploadImage={uploadOne}
                     onUpdateText={updateActivePage}
                   />
+                  {/* <div className="absolute right-0 top-0 translate-x-[110%] w-56 flex flex-col gap-3">
+                    <AddOnsPanel
+                      onAdd={(type) => addToCanvas.current.right?.(type)}
+                      onAddMusic={() => setSpotifyModalMode("music")}
+                      onAddLyricCard={() => setSpotifyModalMode("lyric_card")}
+                    />
+                  </div> */}
                 </article>
               )}
 
@@ -405,25 +417,68 @@ const AdminChapterEditor = () => {
       </main>
 
       <SpotifySearchModal
-        open={showSpotifyModal}
-        onClose={() => setShowSpotifyModal(false)}
-        onSelect={(track: SpotifyTrack) => {
-          addToCanvas.current.left?.("music" as ElementType, {
-            content: track.name,
-            image_url: track.albumArt,
-            width: 260,
-            height: 300,
-            rotation: -2,
-            style: {
-              artist_name: track.artist,
-              album_name: track.albumName,
-              spotify_url: track.spotifyUrl,
-              preview_url: track.previewUrl,
-              original_album_art: track.albumArt,
-            },
-          });
-          setShowSpotifyModal(false);
-          toast.success("Music card added ✿");
+        open={spotifyModalMode !== null}
+        onClose={() => setSpotifyModalMode(null)}
+        onSelect={async (track: SpotifyTrack) => {
+          if (spotifyModalMode === "music") {
+            addToCanvas.current.left?.("music" as ElementType, {
+              content: track.name,
+              image_url: track.albumArt,
+              width: 260,
+              height: 300,
+              rotation: -2,
+              style: {
+                artist_name: track.artist,
+                album_name: track.albumName,
+                spotify_url: track.spotifyUrl,
+                preview_url: track.previewUrl,
+                original_album_art: track.albumArt,
+              },
+            });
+            setSpotifyModalMode(null);
+            toast.success("Music card added ✿");
+
+            // Fire-and-forget: fetch synced lyrics from LRCLIB
+            fetchLyrics(track.name, track.artist).then((lyr) => {
+              if (!lyr?.synced?.length) return;
+            }).catch(() => { });
+          } else if (spotifyModalMode === "lyric_card") {
+            const lyr = await fetchLyrics(track.name, track.artist);
+            let lyricsText = "";
+            if (lyr?.synced?.length) {
+              lyricsText = lyr.synced.slice(0, 4).map((l) => l.text).join("\n");
+            } else if (lyr?.plain) {
+              lyricsText = lyr.plain.split("\n").slice(0, 4).join("\n");
+            } else {
+              lyricsText = "No lyrics found… tap to write your own ♫\n\n" + track.name + " - " + track.artist;
+            }
+
+            addToCanvas.current.left?.("lyric_card" as ElementType, {
+              content: lyricsText,
+              image_url: track.albumArt,
+              width: 240,
+              height: 260,
+              rotation: 0,
+              style: {
+                track_name: track.name,
+                artist_name: track.artist,
+                album_name: track.albumName,
+                spotify_url: track.spotifyUrl,
+                preview_url: track.previewUrl,
+                original_album_art: track.albumArt,
+                theme: "dark",
+                align: "center",
+                bg_color: "#1e1e1e",
+                text_color: "#ffffff",
+                accent_color: "#1DB954",
+                transparency: false,
+                show_logo: true,
+                show_bg_image: true,
+              },
+            });
+            setSpotifyModalMode(null);
+            toast.success("Lyric card added ✿");
+          }
         }}
       />
     </>

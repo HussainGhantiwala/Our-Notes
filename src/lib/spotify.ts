@@ -85,3 +85,161 @@ export async function searchSpotifyTracks(
     spotifyUrl: t.external_urls?.spotify ?? "",
   }));
 }
+
+// ---------- Global Audio Manager ----------
+// Ensures only one preview plays at a time across all music cards.
+
+export interface AudioState {
+  elementId: string | null; // which scrapbook element is currently playing
+  playing: boolean;
+  currentTime: number;
+}
+
+type AudioListener = (state: AudioState) => void;
+
+class PreviewAudioManager {
+  private audio: HTMLAudioElement | null = null;
+  private currentElementId: string | null = null;
+  private listeners: Set<AudioListener> = new Set();
+  private rafId: number | null = null;
+
+  subscribe(fn: AudioListener) {
+    this.listeners.add(fn);
+    return () => { this.listeners.delete(fn); };
+  }
+
+  private notify() {
+    const state: AudioState = {
+      elementId: this.currentElementId,
+      playing: this.audio ? !this.audio.paused : false,
+      currentTime: this.audio?.currentTime ?? 0,
+    };
+    this.listeners.forEach((fn) => fn(state));
+  }
+
+  private startTick() {
+    if (this.rafId !== null) return;
+    const tick = () => {
+      this.notify();
+      this.rafId = requestAnimationFrame(tick);
+    };
+    this.rafId = requestAnimationFrame(tick);
+  }
+
+  private stopTick() {
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+  }
+
+  play(elementId: string, previewUrl: string) {
+    // If same element is already playing → pause/toggle
+    if (this.currentElementId === elementId && this.audio && !this.audio.paused) {
+      this.audio.pause();
+      this.stopTick();
+      this.notify();
+      return;
+    }
+
+    // Stop any previous playback
+    if (this.audio) {
+      this.audio.pause();
+      this.audio.removeAttribute("src");
+      this.audio.load();
+      this.stopTick();
+    }
+
+    this.currentElementId = elementId;
+    this.audio = new Audio(previewUrl);
+
+    this.audio.addEventListener("ended", () => {
+      this.currentElementId = null;
+      this.stopTick();
+      this.notify();
+    });
+
+    this.audio.addEventListener("error", () => {
+      this.currentElementId = null;
+      this.stopTick();
+      this.notify();
+    });
+
+    this.audio.play().then(() => {
+      this.startTick();
+      this.notify();
+    }).catch(() => {
+      this.currentElementId = null;
+      this.notify();
+    });
+
+    this.notify();
+  }
+
+  stop() {
+    if (this.audio) {
+      this.audio.pause();
+      this.audio.removeAttribute("src");
+      this.audio.load();
+      this.audio = null;
+    }
+    this.currentElementId = null;
+    this.stopTick();
+    this.notify();
+  }
+
+  getState(): AudioState {
+    return {
+      elementId: this.currentElementId,
+      playing: this.audio ? !this.audio.paused : false,
+      currentTime: this.audio?.currentTime ?? 0,
+    };
+  }
+}
+
+export const previewAudio = new PreviewAudioManager();
+
+// ---------- LRCLIB Lyrics ----------
+
+export interface SyncedLine {
+  time: number;  // seconds
+  text: string;
+}
+
+/** Parse LRC format "[mm:ss.xx] text" into sorted {time, text}[] */
+export function parseLRC(lrc: string): SyncedLine[] {
+  const lines: SyncedLine[] = [];
+  for (const raw of lrc.split("\n")) {
+    const m = raw.match(/^\[(\d+):(\d+(?:\.\d+)?)\]\s*(.*)$/);
+    if (!m) continue;
+    const time = parseInt(m[1]) * 60 + parseFloat(m[2]);
+    const text = m[3].trim();
+    if (text) lines.push({ time, text });
+  }
+  return lines.sort((a, b) => a.time - b.time);
+}
+
+/** Fetch synced lyrics from LRCLIB (free, no API key) */
+export async function fetchLyrics(
+  trackName: string,
+  artistName: string,
+): Promise<{ plain: string; synced: SyncedLine[] } | null> {
+  try {
+    const url = `https://lrclib.net/api/search?track_name=${encodeURIComponent(trackName)}&artist_name=${encodeURIComponent(artistName)}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data: any[] = await res.json();
+    if (!data?.length) return null;
+
+    // Prefer the result with synced lyrics
+    const withSync = data.find((d) => d.syncedLyrics);
+    const best = withSync ?? data[0];
+
+    return {
+      plain: best.plainLyrics ?? "",
+      synced: best.syncedLyrics ? parseLRC(best.syncedLyrics) : [],
+    };
+  } catch {
+    return null;
+  }
+}

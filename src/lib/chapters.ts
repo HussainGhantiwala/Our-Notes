@@ -59,7 +59,7 @@ export type ElementType =
   | "sticky-yellow" | "sticky-pink" | "sticky-blue" | "sticky-mint" | "sticky-lavender"
   | "tape-pink" | "tape-yellow" | "tape-mint" | "tape-lavender"
   | "heart" | "flower" | "sparkle" | "leaf" | "stamp" | "envelope"
-  | "polaroid" | "highlight" | "arrow" | "photo" | "text" | "music";
+  | "polaroid" | "highlight" | "arrow" | "photo" | "text" | "music" | "lyric_card";
 
 export interface ChapterElement {
   id: string;
