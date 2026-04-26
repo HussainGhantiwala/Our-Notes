@@ -14,8 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      assets: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          public_url: string
+          storage_path: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          public_url: string
+          storage_path: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          public_url?: string
+          storage_path?: string
+        }
+        Relationships: []
+      }
       chapter_elements: {
         Row: {
+          asset_id: string | null
           chapter_id: string
           content: string | null
           created_at: string
@@ -35,6 +66,7 @@ export type Database = {
           z_index: number
         }
         Insert: {
+          asset_id?: string | null
           chapter_id: string
           content?: string | null
           created_at?: string
@@ -54,6 +86,7 @@ export type Database = {
           z_index?: number
         }
         Update: {
+          asset_id?: string | null
           chapter_id?: string
           content?: string | null
           created_at?: string
@@ -73,6 +106,13 @@ export type Database = {
           z_index?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "chapter_elements_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "chapter_elements_chapter_id_fkey"
             columns: ["chapter_id"]

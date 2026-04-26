@@ -10,25 +10,24 @@ interface Props {
   readOnly?: boolean;
   bounds: { width: number; height: number };
   scale: number;
-  imageLibrary?: { url: string }[];
-  onUploadImage?: (file: File) => Promise<string | null>;
+  onRequestMedia?: (cb: (asset: any) => void) => void;
   onSelect: () => void;
   onChange: (patch: Partial<ChapterElement>) => void;
   onCommit: () => void;
-  onSetImage: (url: string | null, storagePath?: string | null) => void;
+  onSetImage: (url: string | null, storagePath?: string | null, asset_id?: string) => void;
 }
 
 const stickyBg: Record<string, string> = {
-  "sticky-yellow":   "hsl(var(--washi-yellow))",
-  "sticky-pink":     "hsl(var(--blush))",
-  "sticky-blue":     "hsl(var(--dusty-blue))",
-  "sticky-mint":     "hsl(var(--washi-mint))",
+  "sticky-yellow": "hsl(var(--washi-yellow))",
+  "sticky-pink": "hsl(var(--blush))",
+  "sticky-blue": "hsl(var(--dusty-blue))",
+  "sticky-mint": "hsl(var(--washi-mint))",
   "sticky-lavender": "hsl(var(--lavender))",
 };
 const tapeBg: Record<string, string> = {
-  "tape-pink":     "hsl(var(--blush) / 0.85)",
-  "tape-yellow":   "hsl(var(--washi-yellow) / 0.8)",
-  "tape-mint":     "hsl(var(--washi-mint) / 0.8)",
+  "tape-pink": "hsl(var(--blush) / 0.85)",
+  "tape-yellow": "hsl(var(--washi-yellow) / 0.8)",
+  "tape-mint": "hsl(var(--washi-mint) / 0.8)",
   "tape-lavender": "hsl(var(--lavender) / 0.8)",
 };
 const stickerGlyph: Partial<Record<ElementType, string>> = {
@@ -128,7 +127,7 @@ const WaveformBars = () => (
 );
 
 const ScrapbookElementInner = ({
-  el, selected, readOnly, bounds, scale, imageLibrary = [], onUploadImage,
+  el, selected, readOnly, bounds, scale, onRequestMedia,
   onSelect, onChange, onCommit, onSetImage,
 }: Props) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -174,7 +173,7 @@ const ScrapbookElementInner = ({
       // Persist to DB so we don't need to re-fetch
       onChange({ style: { ...(el.style ?? {}), synced_lyrics: lyr.synced } });
       onCommit();
-    }).catch(() => {});
+    }).catch(() => { });
   }, [audioPlaying, el.type, el.content, el.style, onChange, onCommit]);
 
   const onPointerDown = (e: RPE<HTMLDivElement>, mode: "move" | "resize" | "rotate") => {
@@ -209,15 +208,6 @@ const ScrapbookElementInner = ({
       drag.current = null;
       onCommit();
     }
-  };
-
-  const onPickFile = async (e: ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    e.target.value = "";
-    if (!f || !onUploadImage) return;
-    const url = await onUploadImage(f);
-    if (url) onSetImage(url);
-    setPicker(false);
   };
 
   const renderBody = () => {
@@ -488,7 +478,7 @@ const ScrapbookElementInner = ({
             {/* Spotify attribution */}
             <div className="flex items-center gap-1.5 mt-3">
               <svg width="14" height="14" viewBox="0 0 24 24" className="text-[#1DB954]">
-                <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381C8.88 5.76 15.78 6.06 20.1 8.82c.541.3.719 1.02.42 1.561-.299.421-1.02.599-1.439.299z" fill="currentColor"/>
+                <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381C8.88 5.76 15.78 6.06 20.1 8.82c.541.3.719 1.02.42 1.561-.299.421-1.02.599-1.439.299z" fill="currentColor" />
               </svg>
               <span className="text-white/50 text-[10px] uppercase tracking-wider" style={{ fontFamily: "'Inter', sans-serif" }}>Spotify</span>
             </div>
@@ -606,7 +596,7 @@ const ScrapbookElementInner = ({
             {showLogo && (
               <div className="flex justify-end mt-3">
                 <svg width="18" height="18" viewBox="0 0 24 24" style={{ color: accentColor }}>
-                  <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381C8.88 5.76 15.78 6.06 20.1 8.82c.541.3.719 1.02.42 1.561-.299.421-1.02.599-1.439.299z" fill="currentColor"/>
+                  <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381C8.88 5.76 15.78 6.06 20.1 8.82c.541.3.719 1.02.42 1.561-.299.421-1.02.599-1.439.299z" fill="currentColor" />
                 </svg>
               </div>
             )}
@@ -696,34 +686,28 @@ const ScrapbookElementInner = ({
 
       {picker && !readOnly && isImageHolder && (
         <div
-          className="absolute z-[10000] left-1/2 -translate-x-1/2 top-full mt-12 w-[260px] bg-cream/98 border border-ink/15 rounded-md shadow-lift p-3"
+          className="absolute z-[10000] left-1/2 -translate-x-1/2 top-full mt-12 w-[220px] bg-cream/98 border border-ink/15 rounded-md shadow-lift p-3 flex flex-col gap-2"
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-1">
             <p className="font-hand text-base text-ink">choose a photo</p>
             <button onClick={() => setPicker(false)} className="font-hand text-ink-soft hover:text-rose">✕</button>
           </div>
-          <label className="block font-hand text-sm text-rose hover:text-ink cursor-pointer mb-2">
-            + upload from device
-            <input type="file" accept="image/jpeg,image/jpg,image/png,image/webp" hidden onChange={onPickFile} />
-          </label>
-          {imageLibrary.length > 0 && (
-            <>
-              <p className="font-print text-[10px] uppercase tracking-widest text-ink-soft mb-1">chapter library</p>
-              <div className="grid grid-cols-3 gap-1 max-h-40 overflow-y-auto">
-                {imageLibrary.map((img) => (
-                  <button
-                    key={img.url}
-                    onClick={() => { onSetImage(img.url); setPicker(false); }}
-                    className="aspect-square overflow-hidden rounded-sm border border-ink/10 hover:border-rose"
-                  >
-                    <img src={img.url} alt="" className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+
+          <button
+            onClick={() => {
+              if (onRequestMedia) {
+                onRequestMedia((asset: any) => {
+                  onSetImage(asset.public_url, asset.storage_path, asset.id);
+                  setPicker(false);
+                });
+              }
+            }}
+            className="w-full text-left font-hand text-sm text-rose hover:text-ink cursor-pointer bg-white/50 border border-ink/10 rounded px-3 py-2 transition-colors"
+          >
+            + open media library
+          </button>
         </div>
       )}
 
@@ -769,7 +753,7 @@ const ScrapbookElementInner = ({
             <p className="font-hand text-base text-ink">✨ customize card</p>
             <button onClick={() => setCustomizingLyric(false)} className="font-hand text-ink-soft hover:text-rose">✕</button>
           </div>
-          
+
           <div className="flex flex-col gap-3 font-hand text-sm text-ink">
             <label className="flex items-center justify-between cursor-pointer">
               <span>Theme</span>
@@ -809,7 +793,7 @@ const ScrapbookElementInner = ({
               <span>Text Color</span>
               <input type="color" value={el.style?.text_color ?? "#ffffff"} onChange={(e) => { onChange({ style: { ...(el.style ?? {}), text_color: e.target.value } }); onCommit(); }} />
             </label>
-            
+
             <label className="flex items-center justify-between cursor-pointer">
               <span>Accent Color</span>
               <input type="color" value={el.style?.accent_color ?? "#1DB954"} onChange={(e) => { onChange({ style: { ...(el.style ?? {}), accent_color: e.target.value } }); onCommit(); }} />

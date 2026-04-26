@@ -15,8 +15,7 @@ interface Props {
   className?: string;
   registerAdd?: (side: Side, fn: (type: ElementType, opts?: Partial<ChapterElement>) => void) => void;
   onSaved?: () => void;
-  imageLibrary?: { url: string }[];
-  onUploadImage?: (file: File) => Promise<string | null>;
+  onRequestMedia?: (cb: (asset: any) => void) => void;
   onUpdateText?: (patch: Partial<ChapterPage>) => void;
 }
 
@@ -24,7 +23,7 @@ const SPREAD_W = CANVAS_W * 2;
 
 export const ScrapbookSpread = ({
   chapterId, activePage, pageCls, readOnly = false, className = "",
-  registerAdd, onSaved, imageLibrary = [], onUploadImage, onUpdateText
+  registerAdd, onSaved, onRequestMedia, onUpdateText
 }: Props) => {
   const pageId = activePage.id;
   const wrap = useRef<HTMLDivElement>(null);
@@ -107,7 +106,8 @@ export const ScrapbookSpread = ({
   const updateEl = (id: string, patch: Partial<ChapterElement>) => {
     setEls((arr) => arr.map((e) => {
       if (e.id !== id) return e;
-      const next = { ...e, ...patch };
+      const mergedStyle = patch.style ? { ...(e.style || {}), ...patch.style } : e.style;
+      const next = { ...e, ...patch, style: mergedStyle };
       // auto-update side based on coordinate to maintain DB integrity
       next.side = next.x >= CANVAS_W ? "right" : "left";
       return next;
@@ -187,8 +187,8 @@ export const ScrapbookSpread = ({
     scheduleSave();
   };
 
-  const setElementImage = async (id: string, url: string | null, storagePath: string | null = null) => {
-    updateEl(id, { image_url: url, storage_path: storagePath });
+  const setElementImage = async (id: string, url: string | null, storagePath: string | null = null, asset_id?: string) => {
+    updateEl(id, { image_url: url, storage_path: storagePath, style: { asset_id } });
     await persistDirty();
   };
 
@@ -246,12 +246,11 @@ export const ScrapbookSpread = ({
                 selected={selectedId === el.id}
                 readOnly={readOnly}
                 bounds={{ width: SPREAD_W, height: CANVAS_H }}
-                imageLibrary={imageLibrary}
-                onUploadImage={onUploadImage}
+                onRequestMedia={onRequestMedia}
                 onSelect={() => setSelectedId(el.id)}
                 onChange={(p) => updateEl(el.id, p)}
                 onCommit={scheduleSave}
-                onSetImage={(url, sp) => setElementImage(el.id, url, sp)}
+                onSetImage={(url, sp, asset_id) => setElementImage(el.id, url, sp, asset_id)}
               />
             </div>
           ))}

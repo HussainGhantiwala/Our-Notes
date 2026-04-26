@@ -5,12 +5,15 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ChapterPage, ChapterRow, ElementType, PaperVariant, Side, slugify,
   listChapterPages, createChapterPage, updateChapterPage, deleteChapterPage,
-  reorderChapterPages, addChapterImage, getChapterImages, sanitizeText,
+  reorderChapterPages, sanitizeText,
 } from "@/lib/chapters";
 import { TapeDecoration } from "@/components/TapeDecoration";
 import { FloatingPetals } from "@/components/FloatingPetals";
 import { ScrapbookSpread } from "@/components/scrapbook/ScrapbookSpread";
 import { AddOnsPanel } from "@/components/scrapbook/AddOnsPanel";
+import { MediaLibraryModal } from "@/components/scrapbook/MediaLibraryModal";
+import type { Asset } from "@/lib/assets";
+import { uploadAsset } from "@/lib/assets";
 import { SmartImage } from "@/components/scrapbook/SmartImage";
 import { SpotifySearchModal } from "@/components/scrapbook/SpotifySearchModal";
 import type { SpotifyTrack } from "@/lib/spotify";
@@ -34,7 +37,7 @@ const AdminChapterEditor = () => {
   const [c, setC] = useState<ChapterRow | null>(null);
   const [pages, setPages] = useState<ChapterPage[]>([]);
   const [activePageId, setActivePageId] = useState<string | null>(null);
-  const [imageLib, setImageLib] = useState<{ url: string; id: string }[]>([]);
+  const [mediaModalOpen, setMediaModalOpen] = useState<"cover" | "page" | "element" | null>(null);
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
   const [spotifyModalMode, setSpotifyModalMode] = useState<"music" | "lyric_card" | null>(null);
 
@@ -49,6 +52,7 @@ const AdminChapterEditor = () => {
   const pageDirty = useRef<Set<string>>(new Set());
   const pageDebounce = useRef<number | null>(null);
   const addToCanvas = useRef<Record<Side, ((t: ElementType, o?: any) => void) | null>>({ left: null, right: null });
+  const mediaModalCallback = useRef<((asset: Asset) => void) | null>(null);
 
   // initial load
   useEffect(() => {
@@ -65,9 +69,6 @@ const AdminChapterEditor = () => {
       const pgs = await listChapterPages(row.id);
       setPages(pgs);
       setActivePageId(pgs[0]?.id ?? null);
-
-      const imgs = await getChapterImages(row.id);
-      setImageLib(imgs.map((i) => ({ url: i.url, id: i.id })));
     })();
   }, [id, nav]);
 
@@ -140,41 +141,33 @@ const AdminChapterEditor = () => {
   };
 
   // --- uploads
-  const uploadOne = async (file: File): Promise<string | null> => {
-    if (!c) return null;
-    if (!/^image\/(jpeg|jpg|png|webp)$/.test(file.type)) {
-      toast.error(`${file.name}: unsupported format`); return null;
+  const onAssetSelect = async (asset: Asset) => {
+    if (mediaModalOpen === "cover") {
+      if (!c) return;
+      await supabase.from("chapters").update({ cover_image_url: asset.public_url }).eq("id", c.id);
+      setC((cur) => cur ? { ...cur, cover_image_url: asset.public_url } : cur);
+      flash();
+      setMediaModalOpen(null);
+    } else if (mediaModalOpen === "page") {
+      addToCanvas.current.left?.("photo", { 
+        image_url: asset.public_url, 
+        width: 200, 
+        height: 200, 
+        rotation: -3,
+        style: { asset_id: asset.id }
+      });
+      toast.success("Photo added ✿");
+      setMediaModalOpen(null);
+    } else if (mediaModalOpen === "element") {
+      mediaModalCallback.current?.(asset);
+      setMediaModalOpen(null);
+      mediaModalCallback.current = null;
     }
-    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-    const path = `${c.id}/${crypto.randomUUID()}.${ext}`;
-    const { error: upErr } = await supabase.storage
-      .from("chapter-media")
-      .upload(path, file, { contentType: file.type, cacheControl: "3600", upsert: false });
-    if (upErr) { toast.error(upErr.message); return null; }
-    const { data: pub } = supabase.storage.from("chapter-media").getPublicUrl(path);
-    const url = pub.publicUrl;
-    try { const img = await addChapterImage(c.id, url, path); setImageLib((l) => [{ url, id: img.id }, ...l]); } catch { }
-    return url;
   };
 
-  const onUploadCover = async (e: ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.length || !c) return;
-    const url = await uploadOne(e.target.files[0]);
-    e.target.value = "";
-    if (!url) return;
-    await supabase.from("chapters").update({ cover_image_url: url }).eq("id", c.id);
-    setC((cur) => cur ? { ...cur, cover_image_url: url } : cur);
-    flash();
-  };
-
-  const onUploadPagePhotos = async (e: ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.length) return;
-    for (const f of Array.from(e.target.files)) {
-      const url = await uploadOne(f);
-      if (url) addToCanvas.current.left?.("photo", { image_url: url, width: 200, height: 200, rotation: -3 });
-    }
-    e.target.value = "";
-    toast.success("Photos added ✿");
+  const requestMedia = (cb: (asset: Asset) => void) => {
+    mediaModalCallback.current = cb;
+    setMediaModalOpen("element");
   };
 
   // --- pages CRUD
@@ -317,10 +310,12 @@ const AdminChapterEditor = () => {
                 {c.cover_image_url && (
                   <SmartImage src={c.cover_image_url} className="w-full aspect-square mb-2 polaroid p-2" />
                 )}
-                <label className="block font-hand text-rose hover:text-ink cursor-pointer">
-                  + upload cover
-                  <input type="file" accept={ACCEPTED} hidden onChange={onUploadCover} />
-                </label>
+                <button
+                  onClick={() => setMediaModalOpen("cover")}
+                  className="block font-hand text-rose hover:text-ink cursor-pointer text-left"
+                >
+                  + select cover image
+                </button>
                 <input value={c.cover_caption ?? ""} onChange={(e) => updateChapter({ cover_caption: e.target.value })}
                   placeholder="caption…"
                   className="mt-1 w-full bg-transparent border-b-2 border-ink/15 focus:border-rose outline-none font-hand text-base text-ink py-1" />
@@ -328,24 +323,12 @@ const AdminChapterEditor = () => {
 
               <div>
                 <p className="font-print text-xs text-ink-soft uppercase tracking-widest mb-1">photos</p>
-                <label className="block font-hand text-rose hover:text-ink cursor-pointer">
-                  + add photos to current page
-                  <input type="file" accept={ACCEPTED} multiple hidden onChange={onUploadPagePhotos} />
-                </label>
-                {imageLib.length > 0 && (
-                  <>
-                    <p className="font-print text-[10px] uppercase tracking-widest text-ink-soft mt-2 mb-1">library — click to drop</p>
-                    <div className="grid grid-cols-3 gap-1 max-h-32 overflow-y-auto">
-                      {imageLib.map((img) => (
-                        <button key={img.id}
-                          onClick={() => addToCanvas.current.left?.("photo", { image_url: img.url, width: 200, height: 200, rotation: -3 })}
-                          className="aspect-square overflow-hidden rounded-sm border border-ink/10 hover:border-rose">
-                          <img src={img.url} alt="" className="w-full h-full object-cover" />
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
+                <button
+                  onClick={() => setMediaModalOpen("page")}
+                  className="block font-hand text-rose hover:text-ink cursor-pointer text-left"
+                >
+                  + open media library
+                </button>
               </div>
 
               <AddOnsPanel
@@ -394,9 +377,8 @@ const AdminChapterEditor = () => {
                     pageCls={pageCls}
                     registerAdd={(s, fn) => { addToCanvas.current[s] = fn; }}
                     onSaved={flash}
-                    imageLibrary={imageLib}
-                    onUploadImage={uploadOne}
                     onUpdateText={updateActivePage}
+                    onRequestMedia={requestMedia}
                   />
                   {/* <div className="absolute right-0 top-0 translate-x-[110%] w-56 flex flex-col gap-3">
                     <AddOnsPanel
@@ -480,6 +462,13 @@ const AdminChapterEditor = () => {
             toast.success("Lyric card added ✿");
           }
         }}
+      />
+
+      {/* Media Library Modal */}
+      <MediaLibraryModal
+        open={mediaModalOpen !== null}
+        onClose={() => setMediaModalOpen(null)}
+        onSelect={onAssetSelect}
       />
     </>
   );
