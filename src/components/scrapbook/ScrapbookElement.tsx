@@ -132,6 +132,7 @@ const ScrapbookElementInner = ({
 }: Props) => {
   const ref = useRef<HTMLDivElement>(null);
   const drag = useRef<{ mode: "move" | "resize" | "rotate" | null; startX: number; startY: number; orig: ChapterElement } | null>(null);
+  const hasDragged = useRef(false);
   const [editing, setEditing] = useState(false);
   const [picker, setPicker] = useState(false);
   const [editingLyrics, setEditingLyrics] = useState(false);
@@ -181,11 +182,18 @@ const ScrapbookElementInner = ({
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     onSelect();
+    hasDragged.current = false;
     drag.current = { mode, startX: e.clientX, startY: e.clientY, orig: { ...el } };
   };
   const onPointerMove = (e: RPE<HTMLDivElement>) => {
     if (!drag.current) return;
     const d = drag.current;
+    
+    // Distinguish drag from click
+    if (Math.abs(e.clientX - d.startX) > 5 || Math.abs(e.clientY - d.startY) > 5) {
+      hasDragged.current = true;
+    }
+
     // divide by scale so 1 screen px == 1 virtual px feels natural
     const dx = (e.clientX - d.startX) / Math.max(scale, 0.001);
     const dy = (e.clientY - d.startY) / Math.max(scale, 0.001);
@@ -340,7 +348,7 @@ const ScrapbookElementInner = ({
       const spotifyUrl = el.style?.spotify_url ?? "";
       const previewUrl = el.style?.preview_url ?? null;
       const albumArt = el.image_url;
-      const isCompact = el.width < 240;
+      const layout = el.style?.music_layout ?? "full";
       const lyricsSnippet = el.style?.lyrics_snippet ?? "";
       const storedLyrics: SyncedLine[] = el.style?.synced_lyrics
         ? (typeof el.style.synced_lyrics === "string" ? parseLRC(el.style.synced_lyrics) : el.style.synced_lyrics as SyncedLine[])
@@ -356,7 +364,10 @@ const ScrapbookElementInner = ({
         }
       };
 
-      // Play button content
+      // Shared Spotify logo SVG path
+      const spotifyPath = "M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381C8.88 5.76 15.78 6.06 20.1 8.82c.541.3.719 1.02.42 1.561-.299.421-1.02.599-1.439.299z";
+
+      // Consistent play button across all layouts
       const PlayBtn = ({ size = 12, btnClass = "" }: { size?: number; btnClass?: string }) => (
         <button
           onClick={handlePlay}
@@ -380,41 +391,128 @@ const ScrapbookElementInner = ({
         </button>
       );
 
-      if (isCompact) {
-        // ---- COMPACT CARD ----
+      // Shared keyframes style block (emitted once)
+      const MusicKeyframes = () => (
+        <style>{`
+          @keyframes musicPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.2); } 50% { box-shadow: 0 0 12px 4px rgba(255,255,255,0.15); } }
+          @keyframes musicWave { 0% { transform: scaleY(0.3); } 100% { transform: scaleY(1); } }
+          @keyframes pillGlow { 0%, 100% { box-shadow: 0 0 8px 0 rgba(29,185,84,0.15); } 50% { box-shadow: 0 0 16px 4px rgba(29,185,84,0.3); } }
+        `}</style>
+      );
+
+      // ==========================================
+      // LAYOUT 3: MINI FLOATING PILL
+      // ==========================================
+      if (layout === "pill") {
         return (
           <div
-            className="w-full h-full flex items-center gap-3 p-3 overflow-hidden relative"
+            className="w-full h-full flex items-center justify-center cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!hasDragged.current) {
+                handlePlay(e);
+              }
+            }}
             style={{
-              background: "linear-gradient(135deg, hsl(160 30% 20%) 0%, hsl(170 25% 16%) 100%)",
-              borderRadius: 14,
-              boxShadow: "0 4px 20px hsl(0 0% 0% / 0.3), 0 1px 3px hsl(0 0% 0% / 0.2)",
+              background: "linear-gradient(135deg, rgba(30,30,30,0.85) 0%, rgba(20,25,20,0.9) 100%)",
+              borderRadius: 999,
+              boxShadow: "0 2px 12px hsl(0 0% 0% / 0.25)",
+              backdropFilter: "blur(12px)",
               containerType: "inline-size",
+              minWidth: 180,
+              minHeight: 36,
+              pointerEvents: "auto",
+              ...(audioPlaying ? { animation: "pillGlow 2s ease-in-out infinite" } : {}),
             }}
           >
-            {albumArt ? (
-              <img src={albumArt} alt="" className="w-12 h-12 rounded-lg object-cover flex-none shadow-md" style={{ zIndex: 2 }} />
-            ) : (
-              <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center flex-none text-xl" style={{ zIndex: 2 }}>🎵</div>
-            )}
-            <div className="flex-1 min-w-0" style={{ zIndex: 2 }}>
-              <p className="font-hand text-sm text-white truncate leading-tight">{el.content || "song"}</p>
-              <p className="text-[11px] text-white/60 truncate" style={{ fontFamily: "'Inter', sans-serif" }}>{artist}</p>
+            <div className="flex items-center gap-2 px-4 py-1 w-full min-w-0 pointer-events-none">
+              <div className="flex items-center justify-center flex-none w-6 h-6 rounded-full transition-colors">
+                {audioPlaying ? (
+                  <WaveformBars />
+                ) : (
+                  <span className="text-[#1DB954] text-sm">♪</span>
+                )}
+              </div>
+              <p
+                className="flex-1 min-w-0 text-white text-[13px] font-medium truncate select-none"
+                style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "0.01em" }}
+              >
+                {el.content || "song"} <span className="text-white/40">—</span> <span className="text-white/60">{artist}</span>
+              </p>
+              {audioPlaying && (
+                <svg width={10} height={10} viewBox="0 0 10 10" fill="white" className="flex-none opacity-60">
+                  <rect x={1} y={1} width={3} height={8} rx={0.5} />
+                  <rect x={6} y={1} width={3} height={8} rx={0.5} />
+                </svg>
+              )}
             </div>
-            <div style={{ zIndex: 2 }}>
-              <PlayBtn size={12} btnClass="flex-none w-8 h-8 rounded-full bg-white/15 hover:bg-white/25" />
-            </div>
-            <style>{`@keyframes musicPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.2); } 50% { box-shadow: 0 0 12px 4px rgba(255,255,255,0.15); } }`}</style>
+            <MusicKeyframes />
           </div>
         );
       }
 
-      // ---- PREMIUM LARGE CARD ----
+      // ==========================================
+      // LAYOUT 2: COMPACT HORIZONTAL CARD
+      // ==========================================
+      if (layout === "horizontal") {
+        const isNarrow = el.width < 220;
+        const artShape = el.style?.art_shape ?? "rounded"; // future: "square" | "rounded" | "circle"
+        const artRadius = artShape === "circle" ? "50%" : artShape === "square" ? "4px" : "10px";
+
+        return (
+          <div
+            className={`w-full h-full ${isNarrow ? "flex flex-col items-center justify-center gap-1.5 p-2" : "flex items-center gap-3 p-3"} overflow-hidden relative`}
+            style={{
+              background: "linear-gradient(135deg, hsl(160 30% 18%) 0%, hsl(200 28% 14%) 100%)",
+              borderRadius: 14,
+              boxShadow: "0 4px 20px hsl(0 0% 0% / 0.3), 0 1px 3px hsl(0 0% 0% / 0.15)",
+              containerType: "inline-size",
+            }}
+          >
+            {albumArt ? (
+              <img
+                src={albumArt} alt=""
+                className={`${isNarrow ? "w-10 h-10" : "w-11 h-11"} object-cover flex-none shadow-md`}
+                style={{ zIndex: 2, borderRadius: artRadius }}
+              />
+            ) : (
+              <div
+                className={`${isNarrow ? "w-10 h-10" : "w-11 h-11"} bg-white/10 flex items-center justify-center flex-none text-lg`}
+                style={{ zIndex: 2, borderRadius: artRadius }}
+              >🎵</div>
+            )}
+            <div className={`${isNarrow ? "text-center w-full" : "flex-1"} min-w-0`} style={{ zIndex: 2 }}>
+              <p className={`text-white truncate leading-tight ${isNarrow ? "text-[11px]" : "text-[13px]"} font-semibold`} style={{ fontFamily: "'Inter', sans-serif" }}>
+                {el.content || "song"}
+              </p>
+              <p className={`text-white/50 truncate ${isNarrow ? "text-[9px]" : "text-[11px]"}`} style={{ fontFamily: "'Inter', sans-serif" }}>
+                {artist}
+              </p>
+            </div>
+            {!isNarrow && (
+              <div style={{ zIndex: 2 }}>
+                <PlayBtn size={12} btnClass="flex-none w-8 h-8 rounded-full bg-white/15 hover:bg-white/25" />
+              </div>
+            )}
+            {/* Tiny Spotify badge */}
+            <div className="absolute bottom-1.5 right-2.5 opacity-40" style={{ zIndex: 2 }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" className="text-[#1DB954]">
+                <path d={spotifyPath} fill="currentColor" />
+              </svg>
+            </div>
+            <MusicKeyframes />
+          </div>
+        );
+      }
+
+      // ==========================================
+      // LAYOUT 1: FULL COVER CARD (default)
+      // ==========================================
       return (
         <div
           className="w-full h-full relative overflow-hidden"
           style={{
-            borderRadius: 16,
+            borderRadius: 14,
             boxShadow: "0 8px 32px hsl(0 0% 0% / 0.35), 0 2px 8px hsl(0 0% 0% / 0.2)",
             containerType: "inline-size",
           }}
@@ -477,14 +575,14 @@ const ScrapbookElementInner = ({
 
             {/* Spotify attribution */}
             <div className="flex items-center gap-1.5 mt-3">
-              <svg width="14" height="14" viewBox="0 0 24 24" className="text-[#1DB954]">
-                <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381C8.88 5.76 15.78 6.06 20.1 8.82c.541.3.719 1.02.42 1.561-.299.421-1.02.599-1.439.299z" fill="currentColor" />
+              <svg width="12" height="12" viewBox="0 0 24 24" className="text-[#1DB954]">
+                <path d={spotifyPath} fill="currentColor" />
               </svg>
-              <span className="text-white/50 text-[10px] uppercase tracking-wider" style={{ fontFamily: "'Inter', sans-serif" }}>Spotify</span>
+              <span className="text-white/40 text-[9px] uppercase tracking-wider" style={{ fontFamily: "'Inter', sans-serif" }}>Spotify</span>
             </div>
           </div>
 
-          <style>{`@keyframes musicPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.2); } 50% { box-shadow: 0 0 12px 4px rgba(255,255,255,0.15); } }`}</style>
+          <MusicKeyframes />
         </div>
       );
     }
@@ -501,11 +599,15 @@ const ScrapbookElementInner = ({
       const showBgImage = el.style?.show_bg_image ?? true;
       const showAlbumArt = el.style?.show_album_art ?? true;
 
+      // Auto font scaling: reduce size for longer lyrics
+      const contentLen = (el.content ?? "").length;
+      const autoScale = contentLen > 200 ? 0.7 : contentLen > 120 ? 0.8 : contentLen > 60 ? 0.9 : 1;
+
       const bgStyle: React.CSSProperties = {
         backgroundColor: transparency ? "transparent" : bgColor,
         color: textColor,
-        borderRadius: 16,
-        boxShadow: transparency ? "none" : "0 8px 32px hsl(0 0% 0% / 0.15), 0 2px 8px hsl(0 0% 0% / 0.05)",
+        borderRadius: 14,
+        boxShadow: transparency ? "none" : "0 6px 24px hsl(0 0% 0% / 0.12), 0 2px 6px hsl(0 0% 0% / 0.06)",
         containerType: "inline-size",
         overflow: "hidden",
       };
@@ -516,44 +618,53 @@ const ScrapbookElementInner = ({
         <div className="w-full h-full relative flex flex-col" style={bgStyle}>
           {showBgImage && albumArt && !transparency && (
             <>
-              {/* Blurred background image - more subtle */}
               <div
                 className="absolute inset-0 bg-cover bg-center"
                 style={{
                   backgroundImage: `url(${albumArt})`,
-                  filter: "blur(50px) saturate(1.2)",
-                  transform: "scale(1.2)",
-                  opacity: theme === "dark" ? 0.35 : 0.25,
+                  filter: "blur(60px) saturate(1.4)",
+                  transform: "scale(1.3)",
+                  opacity: theme === "dark" ? 0.4 : 0.3,
                 }}
               />
-              {/* Overlay to ensure readability */}
               <div
                 className="absolute inset-0"
                 style={{
-                  backgroundColor: theme === "dark" ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.8)",
+                  backgroundColor: theme === "dark" ? "rgba(0,0,0,0.65)" : "rgba(255,255,255,0.75)",
                 }}
               />
             </>
           )}
 
-          <div className="relative z-10 flex flex-col h-full p-5">
-            {/* Header: Optional Album Art & Info */}
-            <div className="flex flex-col mb-4" style={{ alignItems: headerAlignItems, textAlign: align as any }}>
+          <div className="relative z-10 flex flex-col h-full p-4">
+            {/* Header: Album Art & Track Info */}
+            <div className="flex items-center gap-2.5 mb-0 pb-2.5" style={{
+              textAlign: align as any,
+              borderBottom: `1px solid ${theme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"}`,
+              justifyContent: align === "center" ? "center" : align === "right" ? "flex-end" : "flex-start",
+            }}>
               {showAlbumArt && albumArt && (
-                <img src={albumArt} alt="" className="w-12 h-12 rounded-md object-cover shadow-sm mb-3" />
+                <img src={albumArt} alt="" className="w-10 h-10 rounded-md object-cover shadow-sm flex-none" />
               )}
-              <p className="font-bold text-[12px] w-full truncate" style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "0.02em" }}>
-                {el.style?.track_name ?? el.style?.album_name ?? "song"}
-              </p>
-              <p className="text-[10px] opacity-70 w-full truncate uppercase tracking-wider mt-0.5" style={{ fontFamily: "'Inter', sans-serif" }}>
-                {artist}
-              </p>
+              <div className="min-w-0">
+                <p className="font-semibold text-[13px] truncate" style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "0.01em" }}>
+                  {el.style?.track_name ?? el.style?.album_name ?? "song"}
+                </p>
+                <p className="text-[10px] opacity-50 truncate mt-0.5" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  {artist}
+                </p>
+              </div>
             </div>
 
-            {/* Body: Large Quote Lyrics */}
+            {/* Body: Lyric Text with fade overflow */}
             <div
-              className="flex-1 overflow-hidden flex flex-col justify-center cursor-text group"
+              className="flex-1 overflow-hidden flex flex-col justify-center cursor-text group relative"
               onClick={() => !readOnly && setEditing(true)}
+              style={{
+                maskImage: "linear-gradient(to bottom, black 0%, black 75%, transparent 100%)",
+                WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 75%, transparent 100%)",
+                paddingTop: 12,
+              }}
             >
               {editing ? (
                 <textarea
@@ -565,37 +676,37 @@ const ScrapbookElementInner = ({
                     onChange({ content: e.target.value });
                     onCommit();
                   }}
-                  className="w-full h-full bg-transparent p-0 outline-none resize-none font-bold"
+                  className="w-full h-full bg-transparent p-0 outline-none resize-none font-semibold"
                   style={{
                     color: "inherit",
                     fontFamily: "'Inter', sans-serif",
-                    fontSize: "clamp(18px, 9cqi, 36px)",
+                    fontSize: `calc(clamp(14px, 7cqi, 26px) * ${autoScale})`,
                     textAlign: align as any,
-                    lineHeight: 1.2,
-                    letterSpacing: "-0.02em",
+                    lineHeight: 1.45,
+                    letterSpacing: "-0.01em",
                   }}
                 />
               ) : (
                 <p
-                  className={`whitespace-pre-wrap font-bold ${!readOnly ? "group-hover:opacity-80 transition-opacity" : ""}`}
+                  className={`whitespace-pre-wrap font-semibold ${!readOnly ? "group-hover:opacity-80 transition-opacity" : ""}`}
                   style={{
                     fontFamily: "'Inter', sans-serif",
-                    fontSize: "clamp(18px, 9cqi, 36px)",
+                    fontSize: `calc(clamp(14px, 7cqi, 26px) * ${autoScale})`,
                     textAlign: align as any,
-                    lineHeight: 1.2,
-                    letterSpacing: "-0.02em",
-                    textShadow: showBgImage && !transparency ? "0 2px 8px rgba(0,0,0,0.1)" : "none",
+                    lineHeight: 1.45,
+                    letterSpacing: "-0.01em",
+                    textShadow: showBgImage && !transparency ? "0 1px 6px rgba(0,0,0,0.08)" : "none",
                   }}
                 >
-                  {el.content}
+                  {el.content || (readOnly ? "" : "tap to add lyrics…")}
                 </p>
               )}
             </div>
 
-            {/* Footer: Spotify Logo */}
+            {/* Footer: Smaller Spotify Logo */}
             {showLogo && (
-              <div className="flex justify-end mt-3">
-                <svg width="18" height="18" viewBox="0 0 24 24" style={{ color: accentColor }}>
+              <div className="flex justify-end mt-2 opacity-60">
+                <svg width="14" height="14" viewBox="0 0 24 24" style={{ color: accentColor }}>
                   <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381C8.88 5.76 15.78 6.06 20.1 8.82c.541.3.719 1.02.42 1.561-.299.421-1.02.599-1.439.299z" fill="currentColor" />
                 </svg>
               </div>
@@ -665,6 +776,30 @@ const ScrapbookElementInner = ({
               )}
               {isMusic(el.type) && (
                 <>
+                  <span className="text-ink-soft">·</span>
+                  {/* Layout switcher */}
+                  {(["full", "horizontal", "pill"] as const).map((lay) => {
+                    const label = lay === "full" ? "▣" : lay === "horizontal" ? "▬" : "●";
+                    const title = lay === "full" ? "Full Cover" : lay === "horizontal" ? "Horizontal" : "Mini Pill";
+                    const isActive = (el.style?.music_layout ?? "full") === lay;
+                    const sizes: Record<string, { width: number; height: number }> = {
+                      full: { width: 260, height: 300 },
+                      horizontal: { width: 280, height: 72 },
+                      pill: { width: 240, height: 36 },
+                    };
+                    return (
+                      <button
+                        key={lay}
+                        onClick={() => {
+                          const s = sizes[lay];
+                          onChange({ width: s.width, height: s.height, style: { ...(el.style ?? {}), music_layout: lay } });
+                          onCommit();
+                        }}
+                        className={`px-1 text-[11px] ${isActive ? "text-rose font-bold" : "hover:text-rose"}`}
+                        title={title}
+                      >{label}</button>
+                    );
+                  })}
                   <span className="text-ink-soft">·</span>
                   <button onClick={() => setEditingLyrics(!editingLyrics)} className="px-1.5 hover:text-rose">
                     {editingLyrics ? "close lyrics" : "✎ lyrics"}

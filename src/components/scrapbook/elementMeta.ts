@@ -37,7 +37,7 @@ export const ELEMENT_LIBRARY: ElementSpec[] = [
   { type: "text",      label: "handwritten quote", category: "text", defaultWidth: 220, defaultHeight: 90, defaultRotation: -2, defaultContent: "you are my favorite hello…", glyph: "✍️" },
 
   { type: "music",     label: "music card",        category: "music", defaultWidth: 260, defaultHeight: 300, defaultRotation: -2, glyph: "🎵" },
-  { type: "lyric_card", label: "lyric card",       category: "music", defaultWidth: 240, defaultHeight: 260, defaultRotation: 0, glyph: "🎤" },
+  { type: "lyric_card", label: "lyric card",       category: "music", defaultWidth: 210, defaultHeight: 220, defaultRotation: 0, glyph: "🎤" },
 ];
 
 export const isSticky = (t: ElementType) => t.startsWith("sticky-");

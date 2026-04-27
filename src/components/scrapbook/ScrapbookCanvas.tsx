@@ -17,14 +17,12 @@ interface Props {
   registerAdd?: (side: Side, fn: (type: ElementType, opts?: Partial<ChapterElement>) => void) => void;
   // Notify parent after each save so it can show "saved just now"
   onSaved?: () => void;
-  // Pool of uploaded chapter images for the polaroid picker
-  imageLibrary?: { url: string }[];
-  onUploadImage?: (file: File) => Promise<string | null>;
+  onRequestMedia?: (cb: (asset: any) => void) => void;
 }
 
 export const ScrapbookCanvas = ({
   chapterId, pageId, side, readOnly = false, className = "", children,
-  registerAdd, onSaved, imageLibrary = [], onUploadImage,
+  registerAdd, onSaved, onRequestMedia,
 }: Props) => {
   const wrap = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
@@ -33,7 +31,7 @@ export const ScrapbookCanvas = ({
   const [scale, setScale] = useState(1);
   const elsRef = useRef(els);
   useEffect(() => { elsRef.current = els; }, [els]);
-  
+
   const dirty = useRef<Set<string>>(new Set());
   const debounce = useRef<number | null>(null);
 
@@ -42,7 +40,7 @@ export const ScrapbookCanvas = ({
     if (!pageId) return;
     listPageElements(pageId)
       .then((all) => setEls(all))
-      .catch(() => {});
+      .catch(() => { });
   }, [pageId]);
 
   // realtime: listen for element changes on this page (other-tab sync)
@@ -201,8 +199,7 @@ export const ScrapbookCanvas = ({
               selected={selectedId === el.id}
               readOnly={readOnly}
               bounds={{ width: CANVAS_W * 2, height: CANVAS_H }}
-              imageLibrary={imageLibrary}
-              onUploadImage={onUploadImage}
+              onRequestMedia={onRequestMedia}
               onSelect={() => setSelectedId(el.id)}
               onChange={(p) => updateEl(el.id, p)}
               onCommit={scheduleSave}
