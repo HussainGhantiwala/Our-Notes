@@ -1,12 +1,39 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
-import { loveNotes } from "@/data/journal";
+import { useEffect, useState } from "react";
 import { StickyNote } from "@/components/StickyNote";
 import { FloatingPetals } from "@/components/FloatingPetals";
+import { supabase } from "@/integrations/supabase/client";
+import { listNotes, type NoteRow } from "@/lib/notes";
 
 const LoveNotes = () => {
+  const [notes, setNotes] = useState<NoteRow[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
-  const open = loveNotes.find((n) => n.id === openId);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    try {
+      setNotes(await listNotes());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+
+    const channel = supabase
+      .channel("notes-public")
+      .on("postgres_changes", { event: "*", schema: "public", table: "notes" }, () => {
+        load();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const open = notes.find((note) => note.id === openId);
 
   return (
     <>
@@ -24,22 +51,31 @@ const LoveNotes = () => {
             </p>
             <h1 className="font-script text-6xl md:text-7xl text-ink mb-3">Notes for you</h1>
             <p className="font-hand text-2xl text-ink-soft italic">
-              tap a sticky note — there's more on the back
+              tap a sticky note - there&apos;s more on the back
             </p>
           </motion.header>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-            {loveNotes.map((n, i) => (
-              <StickyNote
-                key={n.id}
-                color={n.color}
-                rotate={i % 2 === 0 ? -2 : 2.5}
-                onClick={() => setOpenId(n.id)}
-              >
-                {n.short}
-              </StickyNote>
-            ))}
-          </div>
+          {loading ? (
+            <p className="font-hand text-2xl text-ink-soft text-center py-14">finding the little notes...</p>
+          ) : notes.length === 0 ? (
+            <div className="paper-lined rounded-sm p-12 text-center">
+              <p className="font-hand text-2xl text-ink-soft">No notes have been pinned up yet.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
+              {notes.map((note) => (
+                <StickyNote
+                  key={note.id}
+                  color={note.color}
+                  rotate={note.rotation}
+                  accessory={note.pin_style}
+                  onClick={() => setOpenId(note.id)}
+                >
+                  {note.front_text}
+                </StickyNote>
+              ))}
+            </div>
+          )}
         </div>
 
         <AnimatePresence>
@@ -56,7 +92,7 @@ const LoveNotes = () => {
                 animate={{ scale: 1, rotate: -2, opacity: 1 }}
                 exit={{ scale: 0.85, opacity: 0 }}
                 transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                onClick={(e) => e.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
                 className="paper max-w-md w-full p-8 md:p-10 rounded-sm relative"
               >
                 <button
@@ -64,11 +100,11 @@ const LoveNotes = () => {
                   className="absolute top-3 right-4 font-hand text-2xl text-ink-soft hover:text-rose"
                   aria-label="close"
                 >
-                  ×
+                  x
                 </button>
                 <p className="font-script text-3xl text-rose mb-4">a little note</p>
-                <p className="font-hand text-2xl text-ink leading-snug">{open.full}</p>
-                <p className="font-script text-2xl text-ink-soft mt-6 text-right">♥</p>
+                <p className="font-hand text-2xl text-ink leading-snug whitespace-pre-wrap">{open.back_text}</p>
+                <p className="font-script text-2xl text-ink-soft mt-6 text-right">love</p>
               </motion.div>
             </motion.div>
           )}

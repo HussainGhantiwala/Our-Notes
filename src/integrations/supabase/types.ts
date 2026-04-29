@@ -176,6 +176,7 @@ export type Database = {
           created_at: string
           id: string
           left_text: string
+          page_style: string
           paper_variant: string | null
           position: number
           right_text: string
@@ -186,6 +187,7 @@ export type Database = {
           created_at?: string
           id?: string
           left_text?: string
+          page_style?: string
           paper_variant?: string | null
           position?: number
           right_text?: string
@@ -196,6 +198,7 @@ export type Database = {
           created_at?: string
           id?: string
           left_text?: string
+          page_style?: string
           paper_variant?: string | null
           position?: number
           right_text?: string
@@ -273,6 +276,72 @@ export type Database = {
           subtitle?: string | null
           tags?: string[] | null
           title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      letters: {
+        Row: {
+          cover_style: string
+          created_at: string
+          id: string
+          page_data_json: Json
+          preview_text: string | null
+          subtitle: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          cover_style?: string
+          created_at?: string
+          id?: string
+          page_data_json?: Json
+          preview_text?: string | null
+          subtitle?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          cover_style?: string
+          created_at?: string
+          id?: string
+          page_data_json?: Json
+          preview_text?: string | null
+          subtitle?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      notes: {
+        Row: {
+          back_text: string
+          color: string
+          created_at: string
+          front_text: string
+          id: string
+          pin_style: string
+          rotation: number
+          updated_at: string
+        }
+        Insert: {
+          back_text?: string
+          color?: string
+          created_at?: string
+          front_text?: string
+          id?: string
+          pin_style?: string
+          rotation?: number
+          updated_at?: string
+        }
+        Update: {
+          back_text?: string
+          color?: string
+          created_at?: string
+          front_text?: string
+          id?: string
+          pin_style?: string
+          rotation?: number
           updated_at?: string
         }
         Relationships: []

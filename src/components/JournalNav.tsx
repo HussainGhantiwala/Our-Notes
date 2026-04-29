@@ -5,11 +5,11 @@ import { useAuth } from "@/hooks/useAuth";
 const links = [
   { to: "/", label: "home" },
   { to: "/chapters", label: "chapters" },
-  // { to: "/gallery", label: "memories" },
-  // { to: "/bouquet", label: "bouquet" },
-  // { to: "/notes", label: "notes" },
-  // { to: "/letters", label: "letters" },
-  // { to: "/secret", label: "secret" },
+  { to: "/gallery", label: "memories" },
+  { to: "/bouquet", label: "bouquet" },
+  { to: "/notes", label: "notes" },
+  { to: "/letters", label: "letters" },
+  { to: "/secret", label: "secret" },
 ];
 
 export const JournalNav = () => {

@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 interface StickyNoteProps {
   color?: "yellow" | "pink" | "mint" | "blue" | "lavender" | "peach";
   rotate?: number;
+  accessory?: "none" | "pin" | "tape";
   children: ReactNode;
   className?: string;
   onClick?: () => void;
@@ -21,6 +22,7 @@ const colorMap: Record<string, string> = {
 export const StickyNote = ({
   color = "yellow",
   rotate = -2,
+  accessory = "tape",
   children,
   className = "",
   onClick,
@@ -35,7 +37,15 @@ export const StickyNote = ({
     style={{ background: colorMap[color] }}
     className={`sticky-note relative p-5 w-full min-h-[140px] cursor-pointer font-hand text-ink text-xl leading-snug ${className}`}
   >
-    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1 w-12 h-3 bg-ink/10 rounded-b-sm" />
+    {accessory === "tape" && (
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1 w-12 h-3 bg-ink/10 rounded-b-sm" />
+    )}
+    {accessory === "pin" && (
+      <div className="absolute top-3 left-1/2 -translate-x-1/2">
+        <div className="w-4 h-4 rounded-full bg-rose shadow-sm border border-white/60" />
+        <div className="w-px h-5 bg-ink/25 mx-auto -mt-1" />
+      </div>
+    )}
     {children}
   </motion.div>
 );

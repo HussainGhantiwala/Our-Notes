@@ -8,6 +8,9 @@ import { TapeDecoration } from "@/components/TapeDecoration";
 import { FloatingPetals } from "@/components/FloatingPetals";
 import { toast } from "sonner";
 
+const toMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
 const AdminDashboard = () => {
   const { user, signOut } = useAuth();
   const nav = useNavigate();
@@ -18,8 +21,8 @@ const AdminDashboard = () => {
   const load = async () => {
     try {
       setRows(await listAllChapters());
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (error: unknown) {
+      toast.error(toMessage(error, "Could not load chapters"));
     } finally {
       setLoading(false);
     }
@@ -95,6 +98,27 @@ const AdminDashboard = () => {
             <h1 className="font-script text-6xl text-ink">Your chapters</h1>
             <p className="font-hand text-xl text-ink-soft mt-2 italic">drafts, dreams, and finished pages</p>
           </motion.header>
+
+          <div className="grid gap-4 md:grid-cols-3 mb-8">
+            <Link to="/admin/notes" className="paper relative rounded-sm p-5 hover:-translate-y-1 transition-transform">
+              <TapeDecoration variant="yellow" rotate={-4} className="-top-3 left-8" />
+              <p className="font-print text-xs tracking-[0.3em] uppercase text-ink-soft mb-2">notes</p>
+              <h2 className="font-script text-4xl text-ink">Manage Notes</h2>
+              <p className="font-hand text-lg text-ink-soft mt-2">Quick sticky notes with simple front and back text.</p>
+            </Link>
+            <Link to="/admin/letters" className="paper relative rounded-sm p-5 hover:-translate-y-1 transition-transform">
+              <TapeDecoration variant="lavender" rotate={-4} className="-top-3 left-8" />
+              <p className="font-print text-xs tracking-[0.3em] uppercase text-ink-soft mb-2">letters</p>
+              <h2 className="font-script text-4xl text-ink">Manage Letters</h2>
+              <p className="font-hand text-lg text-ink-soft mt-2">Single-page scrapbook letters with layered keepsakes.</p>
+            </Link>
+            <div className="paper relative rounded-sm p-5">
+              <TapeDecoration variant="pink" rotate={-4} className="-top-3 left-8" />
+              <p className="font-print text-xs tracking-[0.3em] uppercase text-ink-soft mb-2">chapters</p>
+              <h2 className="font-script text-4xl text-ink">Manage Chapters</h2>
+              <p className="font-hand text-lg text-ink-soft mt-2">Your full journal spreads stay exactly where they are.</p>
+            </div>
+          </div>
 
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between mb-6">
             <input

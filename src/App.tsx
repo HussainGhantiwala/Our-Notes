@@ -17,6 +17,8 @@ import NotFound from "./pages/NotFound.tsx";
 import Auth from "./pages/Auth.tsx";
 import AdminDashboard from "./pages/AdminDashboard.tsx";
 import AdminChapterEditor from "./pages/AdminChapterEditor.tsx";
+import AdminNotesEditor from "./pages/AdminNotesEditor.tsx";
+import AdminLettersEditor from "./pages/AdminLettersEditor.tsx";
 import { JournalNav } from "./components/JournalNav";
 import { MusicToggle } from "./components/MusicToggle";
 
@@ -42,6 +44,8 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
             <Route path="/admin/chapter/:id" element={<AdminGuard><AdminChapterEditor /></AdminGuard>} />
+            <Route path="/admin/notes" element={<AdminGuard><AdminNotesEditor /></AdminGuard>} />
+            <Route path="/admin/letters" element={<AdminGuard><AdminLettersEditor /></AdminGuard>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <MusicToggle />
