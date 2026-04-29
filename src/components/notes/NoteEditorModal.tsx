@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { NoteColor, NoteInput, NotePinStyle, NoteRow } from "@/lib/notes";
+import type { NoteColor, NoteInput, NotePinStyle, NoteRow, NoteSticker } from "@/lib/notes";
 
 const COLORS: { value: NoteColor; label: string }[] = [
   { value: "yellow", label: "butter" },
@@ -23,6 +23,17 @@ const PINS: { value: NotePinStyle; label: string }[] = [
   { value: "tape", label: "tape" },
   { value: "pin", label: "pin" },
   { value: "none", label: "none" },
+];
+
+const STICKERS: { value: NoteSticker; label: string }[] = [
+  { value: "none", label: "none" },
+  { value: "❤️", label: "heart" },
+  { value: "🌷", label: "tulip" },
+  { value: "✨", label: "sparkle" },
+  { value: "🍃", label: "leaf" },
+  { value: "📮", label: "mailbox" },
+  { value: "💌", label: "love note" },
+  { value: "📍", label: "pin" },
 ];
 
 interface Props {
@@ -53,6 +64,7 @@ export const NoteEditorModal = ({
         color: note.color,
         rotation: note.rotation,
         pin_style: note.pin_style,
+        sticker: note.sticker,
       });
       return;
     }
@@ -69,9 +81,9 @@ export const NoteEditorModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl paper border-none p-0 overflow-hidden">
-        <div className="grid gap-0 md:grid-cols-[1.1fr_0.9fr]">
-          <div className="p-6 md:p-8 border-b md:border-b-0 md:border-r border-ink/10 bg-cream/60">
+      <DialogContent className="max-w-4xl w-[calc(100vw-1.5rem)] max-h-[90vh] paper border-none p-0 overflow-hidden flex flex-col">
+        <div className="grid flex-1 min-h-0 gap-0 md:grid-cols-[1.08fr_0.92fr]">
+          <div className="min-h-0 overflow-y-auto p-5 md:p-6 border-b md:border-b-0 md:border-r border-ink/10 bg-cream/60">
             <DialogHeader className="text-left">
               <p className="font-print text-xs tracking-[0.35em] uppercase text-ink-soft">journal lite mode</p>
               <DialogTitle className="font-script text-4xl text-ink">
@@ -82,13 +94,13 @@ export const NoteEditorModal = ({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 mt-6">
+            <div className="space-y-4 mt-5 pb-1">
               <label className="block">
                 <span className="font-print text-xs tracking-[0.3em] uppercase text-ink-soft">Front text</span>
                 <textarea
                   value={form.front_text}
                   onChange={(event) => setForm((current) => ({ ...current, front_text: event.target.value }))}
-                  rows={4}
+                  rows={3}
                   placeholder="The quick little thought on the sticky note..."
                   className="mt-2 w-full rounded-sm border border-ink/10 bg-white/70 px-4 py-3 font-hand text-xl text-ink outline-none focus:border-rose/40 resize-none"
                 />
@@ -162,19 +174,50 @@ export const NoteEditorModal = ({
                   </div>
                 </div>
               </div>
+
+              <div>
+                <span className="font-print text-xs tracking-[0.3em] uppercase text-ink-soft">Sticker</span>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {STICKERS.map((sticker) => (
+                    <button
+                      key={sticker.value}
+                      type="button"
+                      onClick={() => setForm((current) => ({ ...current, sticker: sticker.value === "none" ? null : sticker.value }))}
+                      className={`rounded-full px-3 py-1.5 font-hand text-base transition-all border ${
+                        (form.sticker ?? "none") === sticker.value
+                          ? "border-rose bg-blush/50 text-ink"
+                          : "border-ink/10 bg-white/70 text-ink-soft hover:text-ink"
+                      }`}
+                    >
+                      {sticker.value === "none" ? "none" : sticker.value}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="p-6 md:p-8 bg-background/60">
+          <div className="min-h-0 overflow-y-auto p-5 md:p-6 bg-background/60">
             <p className="font-print text-xs tracking-[0.35em] uppercase text-ink-soft">Preview</p>
-            <div className="mt-4 space-y-5">
-              <StickyNote color={form.color} rotate={form.rotation} accessory={form.pin_style} className="min-h-[220px]">
+            <div className="mt-4 space-y-4">
+              <StickyNote
+                color={form.color}
+                rotate={form.rotation}
+                accessory={form.pin_style}
+                sticker={form.sticker}
+                className="min-h-[210px]"
+              >
                 <p className="whitespace-pre-wrap break-words">
                   {form.front_text || "Your note front preview appears here."}
                 </p>
               </StickyNote>
 
-              <div className="paper-lined rounded-sm p-5 min-h-[220px]">
+              <div className="paper-lined rounded-sm p-5 min-h-[210px] relative">
+                {form.sticker && (
+                  <span className="absolute top-4 right-4 text-2xl leading-none" aria-hidden>
+                    {form.sticker}
+                  </span>
+                )}
                 <p className="font-script text-3xl text-rose mb-4">a little note</p>
                 <p className="font-hand text-xl text-ink leading-relaxed whitespace-pre-wrap">
                   {form.back_text || "The full note preview appears here once the sticky note is opened."}
@@ -184,7 +227,7 @@ export const NoteEditorModal = ({
           </div>
         </div>
 
-        <DialogFooter className="border-t border-ink/10 px-6 py-4 bg-cream/70">
+        <DialogFooter className="border-t border-ink/10 px-5 md:px-6 py-3 bg-cream/70 shrink-0">
           <button
             type="button"
             onClick={() => onOpenChange(false)}

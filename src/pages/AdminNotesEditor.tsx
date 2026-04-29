@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FloatingPetals } from "@/components/FloatingPetals";
 import { StickyNote } from "@/components/StickyNote";
 import { NoteEditorModal } from "@/components/notes/NoteEditorModal";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import {
   DEFAULT_NOTE,
   createNote,
@@ -19,12 +20,25 @@ import { toast } from "sonner";
 const toMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
 
+const upsertNote = (notes: NoteRow[], next: NoteRow) => {
+  const idx = notes.findIndex((note) => note.id === next.id);
+  if (idx === -1) return [...notes, next].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const copy = notes.slice();
+  copy[idx] = next;
+  return copy;
+};
+
 const AdminNotesEditor = () => {
   const [notes, setNotes] = useState<NoteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingNote, setEditingNote] = useState<NoteRow | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const editingNoteIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    editingNoteIdRef.current = editingNote?.id ?? null;
+  }, [editingNote]);
 
   const load = async () => {
     try {
@@ -41,8 +55,17 @@ const AdminNotesEditor = () => {
 
     const channel = supabase
       .channel("notes-admin")
-      .on("postgres_changes", { event: "*", schema: "public", table: "notes" }, () => {
-        load();
+      .on("postgres_changes", { event: "*", schema: "public", table: "notes" }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          const deleted = payload.old as Tables<"notes">;
+          setNotes((current) => current.filter((note) => note.id !== deleted.id));
+          setEditingNote((current) => (current?.id === deleted.id ? null : current));
+          if (editingNoteIdRef.current === deleted.id) setModalOpen(false);
+          return;
+        }
+
+        const next = payload.new as Tables<"notes">;
+        setNotes((current) => upsertNote(current, next as NoteRow));
       })
       .subscribe();
 
@@ -82,10 +105,16 @@ const AdminNotesEditor = () => {
   const remove = async (id: string) => {
     if (!confirm("Delete this note forever?")) return;
 
+    const previous = notes;
+    setNotes((current) => current.filter((note) => note.id !== id));
+    setEditingNote((current) => (current?.id === id ? null : current));
+    if (editingNote?.id === id) setModalOpen(false);
+
     try {
       await deleteNote(id);
       toast.success("Note deleted");
     } catch (error: unknown) {
+      setNotes(previous);
       toast.error(toMessage(error, "Could not delete note"));
     }
   };
@@ -145,6 +174,7 @@ const AdminNotesEditor = () => {
                       color={note.color}
                       rotate={note.rotation}
                       accessory={note.pin_style}
+                      sticker={note.sticker}
                       className="min-h-[180px]"
                     >
                       <p className="whitespace-pre-wrap break-words line-clamp-5">{note.front_text}</p>

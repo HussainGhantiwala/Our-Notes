@@ -5,6 +5,7 @@ interface StickyNoteProps {
   color?: "yellow" | "pink" | "mint" | "blue" | "lavender" | "peach";
   rotate?: number;
   accessory?: "none" | "pin" | "tape";
+  sticker?: string | null;
   children: ReactNode;
   className?: string;
   onClick?: () => void;
@@ -23,6 +24,7 @@ export const StickyNote = ({
   color = "yellow",
   rotate = -2,
   accessory = "tape",
+  sticker,
   children,
   className = "",
   onClick,
@@ -44,6 +46,11 @@ export const StickyNote = ({
       <div className="absolute top-3 left-1/2 -translate-x-1/2">
         <div className="w-4 h-4 rounded-full bg-rose shadow-sm border border-white/60" />
         <div className="w-px h-5 bg-ink/25 mx-auto -mt-1" />
+      </div>
+    )}
+    {sticker && sticker !== "none" && (
+      <div className="absolute top-4 right-4 text-2xl leading-none drop-shadow-sm" aria-hidden>
+        {sticker}
       </div>
     )}
     {children}

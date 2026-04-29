@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type NoteColor = "yellow" | "pink" | "mint" | "blue" | "lavender" | "peach";
 export type NotePinStyle = "none" | "pin" | "tape";
+export type NoteSticker = "none" | "❤️" | "🌷" | "✨" | "🍃" | "📮" | "💌" | "📍";
 
 export interface NoteRow {
   id: string;
@@ -10,6 +11,7 @@ export interface NoteRow {
   color: NoteColor;
   rotation: number;
   pin_style: NotePinStyle;
+  sticker: NoteSticker | null;
   created_at: string;
   updated_at: string;
 }
@@ -20,6 +22,7 @@ export interface NoteInput {
   color: NoteColor;
   rotation: number;
   pin_style: NotePinStyle;
+  sticker: NoteSticker | null;
 }
 
 export const DEFAULT_NOTE: NoteInput = {
@@ -28,6 +31,7 @@ export const DEFAULT_NOTE: NoteInput = {
   color: "yellow",
   rotation: -2,
   pin_style: "tape",
+  sticker: null,
 };
 
 export async function listNotes() {

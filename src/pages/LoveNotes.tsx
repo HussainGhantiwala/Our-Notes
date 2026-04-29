@@ -3,7 +3,16 @@ import { useEffect, useState } from "react";
 import { StickyNote } from "@/components/StickyNote";
 import { FloatingPetals } from "@/components/FloatingPetals";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import { listNotes, type NoteRow } from "@/lib/notes";
+
+const upsertNote = (notes: NoteRow[], next: NoteRow) => {
+  const idx = notes.findIndex((note) => note.id === next.id);
+  if (idx === -1) return [...notes, next].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const copy = notes.slice();
+  copy[idx] = next;
+  return copy;
+};
 
 const LoveNotes = () => {
   const [notes, setNotes] = useState<NoteRow[]>([]);
@@ -23,8 +32,16 @@ const LoveNotes = () => {
 
     const channel = supabase
       .channel("notes-public")
-      .on("postgres_changes", { event: "*", schema: "public", table: "notes" }, () => {
-        load();
+      .on("postgres_changes", { event: "*", schema: "public", table: "notes" }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          const deleted = payload.old as Tables<"notes">;
+          setNotes((current) => current.filter((note) => note.id !== deleted.id));
+          setOpenId((current) => (current === deleted.id ? null : current));
+          return;
+        }
+
+        const next = payload.new as Tables<"notes">;
+        setNotes((current) => upsertNote(current, next as NoteRow));
       })
       .subscribe();
 
@@ -69,6 +86,7 @@ const LoveNotes = () => {
                   color={note.color}
                   rotate={note.rotation}
                   accessory={note.pin_style}
+                  sticker={note.sticker}
                   onClick={() => setOpenId(note.id)}
                 >
                   {note.front_text}
@@ -103,6 +121,11 @@ const LoveNotes = () => {
                   x
                 </button>
                 <p className="font-script text-3xl text-rose mb-4">a little note</p>
+                {open.sticker && (
+                  <span className="absolute top-8 right-16 text-3xl leading-none" aria-hidden>
+                    {open.sticker}
+                  </span>
+                )}
                 <p className="font-hand text-2xl text-ink leading-snug whitespace-pre-wrap">{open.back_text}</p>
                 <p className="font-script text-2xl text-ink-soft mt-6 text-right">love</p>
               </motion.div>
