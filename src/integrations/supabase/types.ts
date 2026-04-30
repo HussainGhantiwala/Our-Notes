@@ -313,6 +313,74 @@ export type Database = {
         }
         Relationships: []
       }
+      mixtape_tracks: {
+        Row: {
+          album_art: string | null
+          artist: string
+          id: string
+          mixtape_id: string
+          name: string
+          note: string | null
+          position: number
+          preview_url: string | null
+          spotify_url: string
+          track_id: string
+        }
+        Insert: {
+          album_art?: string | null
+          artist: string
+          id?: string
+          mixtape_id: string
+          name: string
+          note?: string | null
+          position?: number
+          preview_url?: string | null
+          spotify_url: string
+          track_id: string
+        }
+        Update: {
+          album_art?: string | null
+          artist?: string
+          id?: string
+          mixtape_id?: string
+          name?: string
+          note?: string | null
+          position?: number
+          preview_url?: string | null
+          spotify_url?: string
+          track_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mixtape_tracks_mixtape_id_fkey"
+            columns: ["mixtape_id"]
+            isOneToOne: false
+            referencedRelation: "mixtapes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mixtapes: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          title?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          title?: string
+        }
+        Relationships: []
+      }
       notes: {
         Row: {
           back_text: string

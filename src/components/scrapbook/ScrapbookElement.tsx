@@ -350,6 +350,7 @@ const ScrapbookElementInner = ({
       const albumArt = el.image_url;
       const layout = el.style?.music_layout ?? "full";
       const lyricsSnippet = el.style?.lyrics_snippet ?? "";
+      const note = typeof el.style?.note === "string" ? el.style.note : "";
       const storedLyrics: SyncedLine[] = el.style?.synced_lyrics
         ? (typeof el.style.synced_lyrics === "string" ? parseLRC(el.style.synced_lyrics) : el.style.synced_lyrics as SyncedLine[])
         : [];
@@ -488,6 +489,19 @@ const ScrapbookElementInner = ({
               <p className={`text-white/50 truncate ${isNarrow ? "text-[9px]" : "text-[11px]"}`} style={{ fontFamily: "'Inter', sans-serif" }}>
                 {artist}
               </p>
+              {!audioPlaying && note && !isNarrow && (
+                <p
+                  className="mt-1.5 font-hand text-[14px] leading-tight text-white/86"
+                  style={{
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {note}
+                </p>
+              )}
             </div>
             {!isNarrow && (
               <div style={{ zIndex: 2 }}>
@@ -567,6 +581,14 @@ const ScrapbookElementInner = ({
                     <p className="text-white/70 text-sm truncate" style={{ fontFamily: "'Inter', sans-serif" }}>
                       {artist}
                     </p>
+                    {note && (
+                      <p
+                        className="mt-2 max-w-[17ch] font-hand text-[18px] leading-tight text-white/92"
+                        style={{ textShadow: "0 2px 8px rgba(0,0,0,0.42)" }}
+                      >
+                        {note}
+                      </p>
+                    )}
                   </>
                 )}
               </div>

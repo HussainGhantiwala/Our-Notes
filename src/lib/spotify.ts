@@ -12,6 +12,7 @@ export interface SpotifyTrack {
   albumArt: string;       // largest album image URL
   previewUrl: string | null;
   spotifyUrl: string;     // external Spotify link
+  popularity: number;
 }
 
 // ---------- Token cache ----------
@@ -51,10 +52,11 @@ export async function searchSpotifyTracks(
 
   const token = await getSpotifyToken();
 
-  const safeLimit =
-    typeof limit === "number" && !Number.isNaN(limit)
-      ? Math.min(Math.max(limit, 1), 10)
-      : 5;
+  const rawLimit =
+    typeof limit === "number" && Number.isFinite(limit)
+      ? limit
+      : 10;
+  const safeLimit = Math.min(Math.max(Math.trunc(rawLimit), 1), 50);
 
   const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(
     query.trim()
@@ -68,7 +70,7 @@ export async function searchSpotifyTracks(
 
   if (!res.ok) {
     const txt = await res.text();
-    console.log(txt);
+    console.error("SPOTIFY SEARCH ERROR:", { status: res.status, body: txt, safeLimit, query });
     throw new Error(`Spotify search failed: ${res.status}`);
   }
 
@@ -83,6 +85,7 @@ export async function searchSpotifyTracks(
     albumArt: t.album?.images?.[0]?.url ?? "",
     previewUrl: t.preview_url ?? null,
     spotifyUrl: t.external_urls?.spotify ?? "",
+    popularity: typeof t.popularity === "number" ? t.popularity : 0,
   }));
 }
 

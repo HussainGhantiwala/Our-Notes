@@ -13,12 +13,15 @@ import Bouquet from "./pages/Bouquet.tsx";
 import LoveNotes from "./pages/LoveNotes.tsx";
 import Secret from "./pages/Secret.tsx";
 import FutureLetters from "./pages/FutureLetters.tsx";
+import Mixtapes from "./pages/Mixtapes.tsx";
+import MixtapeDetail from "./pages/MixtapeDetail.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Auth from "./pages/Auth.tsx";
 import AdminDashboard from "./pages/AdminDashboard.tsx";
 import AdminChapterEditor from "./pages/AdminChapterEditor.tsx";
 import AdminNotesEditor from "./pages/AdminNotesEditor.tsx";
 import AdminLettersEditor from "./pages/AdminLettersEditor.tsx";
+import AdminMixtapesEditor from "./pages/AdminMixtapesEditor.tsx";
 import { JournalNav } from "./components/JournalNav";
 import { MusicToggle } from "./components/MusicToggle";
 
@@ -35,6 +38,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/chapters" element={<Chapters />} />
+            <Route path="/mixtapes" element={<Mixtapes />} />
+            <Route path="/mixtapes/:id" element={<MixtapeDetail />} />
             <Route path="/chapter/:id" element={<JournalEntry />} />
             <Route path="/gallery" element={<Gallery />} />
             <Route path="/bouquet" element={<Bouquet />} />
@@ -46,6 +51,7 @@ const App = () => (
             <Route path="/admin/chapter/:id" element={<AdminGuard><AdminChapterEditor /></AdminGuard>} />
             <Route path="/admin/notes" element={<AdminGuard><AdminNotesEditor /></AdminGuard>} />
             <Route path="/admin/letters" element={<AdminGuard><AdminLettersEditor /></AdminGuard>} />
+            <Route path="/admin/mixtapes" element={<AdminGuard><AdminMixtapesEditor /></AdminGuard>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <MusicToggle />

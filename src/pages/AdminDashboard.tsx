@@ -112,6 +112,12 @@ const AdminDashboard = () => {
               <h2 className="font-script text-4xl text-ink">Manage Letters</h2>
               <p className="font-hand text-lg text-ink-soft mt-2">Single-page scrapbook letters with layered keepsakes.</p>
             </Link>
+            <Link to="/admin/mixtapes" className="paper relative rounded-sm p-5 hover:-translate-y-1 transition-transform">
+              <TapeDecoration variant="mint" rotate={-4} className="-top-3 left-8" />
+              <p className="font-print text-xs tracking-[0.3em] uppercase text-ink-soft mb-2">mixtapes</p>
+              <h2 className="font-script text-4xl text-ink">Create Mixtape</h2>
+              <p className="font-hand text-lg text-ink-soft mt-2">Search songs, hand-order the tracklist, and leave little notes track by track.</p>
+            </Link>
             <div className="paper relative rounded-sm p-5">
               <TapeDecoration variant="pink" rotate={-4} className="-top-3 left-8" />
               <p className="font-print text-xs tracking-[0.3em] uppercase text-ink-soft mb-2">chapters</p>
