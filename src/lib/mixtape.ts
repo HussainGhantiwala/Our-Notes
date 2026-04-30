@@ -1,7 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import type { SpotifyTrack } from "@/lib/spotify";
-import { createSpotifyPlaylist } from "@/lib/spotifyPlaylist";
 
 async function ensureUser() {
   const {
@@ -229,11 +228,6 @@ export async function saveMixtape(input: MixtapeEditorInput) {
   }
 
   const savedMixtape = await getMixtape(mixtapeId);
-  const playlist = await createSpotifyPlaylist(savedMixtape, normalizeTrackPositions(input.tracks));
-  if (playlist) {
-    console.log("Spotify playlist created:", playlist);
-  }
-
   return savedMixtape;
 }
 

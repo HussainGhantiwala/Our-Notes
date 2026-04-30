@@ -1,10 +1,17 @@
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { toast } from "sonner";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AdminGuard } from "@/components/AdminGuard";
+import {
+  clearSpotifyAuthCallbackFromUrl,
+  clearSpotifyAuthState,
+  exchangeSpotifyCodeForAccessToken,
+} from "@/lib/spotifyAuth";
 import Index from "./pages/Index.tsx";
 import Chapters from "./pages/Chapters.tsx";
 import JournalEntry from "./pages/JournalEntry.tsx";
@@ -27,12 +34,53 @@ import { MusicToggle } from "./components/MusicToggle";
 
 const queryClient = new QueryClient();
 
+const SpotifyTokenHandler = () => {
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const authError = params.get("error");
+
+    if (authError) {
+      clearSpotifyAuthState();
+      clearSpotifyAuthCallbackFromUrl();
+      toast.error("Spotify connection was cancelled.");
+      return;
+    }
+
+    if (!code) return;
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        await exchangeSpotifyCodeForAccessToken(code);
+        if (cancelled) return;
+        clearSpotifyAuthCallbackFromUrl();
+        toast.success("Spotify connected.");
+      } catch (error) {
+        clearSpotifyAuthState();
+        clearSpotifyAuthCallbackFromUrl();
+        if (!cancelled) {
+          toast.error(error instanceof Error ? error.message : "Spotify connection failed.");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <SpotifyTokenHandler />
         <AuthProvider>
           <JournalNav />
           <Routes>
@@ -52,6 +100,7 @@ const App = () => (
             <Route path="/admin/notes" element={<AdminGuard><AdminNotesEditor /></AdminGuard>} />
             <Route path="/admin/letters" element={<AdminGuard><AdminLettersEditor /></AdminGuard>} />
             <Route path="/admin/mixtapes" element={<AdminGuard><AdminMixtapesEditor /></AdminGuard>} />
+            <Route path="/callback" element={<div />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <MusicToggle />

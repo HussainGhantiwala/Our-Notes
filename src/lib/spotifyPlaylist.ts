@@ -1,4 +1,5 @@
-import type { MixtapeTrackDraft, MixtapeWithTracks } from "@/lib/mixtape";
+import type { MixtapeTrackDraft, MixtapeTrackRow, MixtapeWithTracks } from "@/lib/mixtape";
+import { clearSpotifyAccessToken, getSpotifyAccessToken } from "@/lib/spotifyAuth";
 
 interface SpotifyCurrentUser {
   id: string;
@@ -16,44 +17,80 @@ export interface SpotifyPlaylistResult {
   playlistId: string;
 }
 
+type SpotifyPlaylistTrack = Pick<MixtapeTrackDraft, "spotifyUrl"> | Pick<MixtapeTrackRow, "spotify_url">;
+
+type SpotifyPlaylistInput = Pick<MixtapeWithTracks, "title" | "description"> & {
+  tracks: SpotifyPlaylistTrack[];
+};
+
+export function isSpotifyConnected() {
+  return !!getSpotifyAccessToken();
+}
+
+const getTrackSpotifyUrl = (track: SpotifyPlaylistTrack) =>
+  "spotify_url" in track ? track.spotify_url : track.spotifyUrl;
+
+const extractSpotifyTrackId = (spotifyUrl: string) => {
+  const trimmed = spotifyUrl.trim();
+  const match = trimmed.match(/(?:spotify\.com\/track\/|spotify:track:)([A-Za-z0-9]+)/i);
+  return match?.[1] ?? "";
+};
+
+const buildSpotifyTrackUri = (spotifyUrl: string) => {
+  const trackId = extractSpotifyTrackId(spotifyUrl);
+  return trackId ? `spotify:track:${trackId}` : "";
+};
+
+const throwIfUnauthorized = (status: number) => {
+  if (status !== 401) return;
+  clearSpotifyAccessToken();
+  throw new Error("Spotify access token expired. Reconnect Spotify.");
+};
+
+const spotifyRequest = async (input: RequestInfo | URL, init: RequestInit, token: string) => {
+  const response = await fetch(input, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(init.headers ?? {}),
+    },
+  });
+
+  throwIfUnauthorized(response.status);
+  return response;
+};
+
 export async function createSpotifyPlaylist(
-  mixtape: Pick<MixtapeWithTracks, "title" | "description">,
-  tracks: MixtapeTrackDraft[],
-): Promise<SpotifyPlaylistResult | null> {
-  const token = localStorage.getItem("spotify_access_token")?.trim() ?? "";
+  mixtape: SpotifyPlaylistInput,
+): Promise<SpotifyPlaylistResult> {
+  const token = getSpotifyAccessToken();
   if (!token) {
-    console.warn("Spotify playlist warning: missing spotify_access_token");
-    return null;
+    throw new Error("Connect Spotify before creating a playlist.");
   }
 
-  const uris = tracks
-    .map((track) => track.id?.trim() ?? "")
-    .filter(Boolean)
-    .map((trackId) => `spotify:track:${trackId}`);
+  const uris = mixtape.tracks
+    .map((track) => buildSpotifyTrackUri(getTrackSpotifyUrl(track)))
+    .filter(Boolean);
+  console.log("TRACK URIS:", uris);
 
   if (uris.length === 0) {
-    console.warn("Spotify playlist warning: no track URIs available");
-    return null;
+    throw new Error("No Spotify track links were found for this mixtape.");
   }
 
-  try {
-    const meResponse = await fetch("https://api.spotify.com/v1/me", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+  const meResponse = await spotifyRequest("https://api.spotify.com/v1/me", {}, token);
 
-    if (!meResponse.ok) {
-      const body = await meResponse.text();
-      throw new Error(`Spotify /me failed (${meResponse.status}): ${body}`);
-    }
+  if (!meResponse.ok) {
+    const body = await meResponse.text();
+    throw new Error(`Spotify /me failed (${meResponse.status}): ${body}`);
+  }
 
-    const me = await meResponse.json() as SpotifyCurrentUser;
+  const me = await meResponse.json() as SpotifyCurrentUser;
 
-    const playlistResponse = await fetch(`https://api.spotify.com/v1/users/${me.id}/playlists`, {
+  const playlistResponse = await spotifyRequest(
+    `https://api.spotify.com/v1/me/playlists`,
+    {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -61,37 +98,43 @@ export async function createSpotifyPlaylist(
         description: mixtape.description?.trim() || "",
         public: false,
       }),
-    });
+    },
+    token
+  );
 
-    if (!playlistResponse.ok) {
-      const body = await playlistResponse.text();
-      throw new Error(`Spotify playlist creation failed (${playlistResponse.status}): ${body}`);
-    }
+  if (!playlistResponse.ok) {
+    const body = await playlistResponse.text();
+    throw new Error(`Spotify playlist creation failed (${playlistResponse.status}): ${body}`);
+  }
 
-    const playlist = await playlistResponse.json() as SpotifyPlaylistResponse;
+  const playlist = await playlistResponse.json() as SpotifyPlaylistResponse;
 
-    const addTracksResponse = await fetch(`https://api.spotify.com/v1/playlists/${playlist.id}/tracks`, {
+  const trackIds = mixtape.tracks
+    .map((track) => extractSpotifyTrackId(getTrackSpotifyUrl(track)))
+    .filter(Boolean);
+
+  const addTracksResponse = await spotifyRequest(
+    `https://api.spotify.com/v1/playlists/${playlist.id}/items`, // ✅ NEW
+    {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        uris,
+        uris: trackIds.map(id => `spotify:track:${id}`),
       }),
-    });
+    },
+    token
+  );
 
-    if (!addTracksResponse.ok) {
-      const body = await addTracksResponse.text();
-      throw new Error(`Spotify add tracks failed (${addTracksResponse.status}): ${body}`);
-    }
-
-    return {
-      playlistUrl: playlist.external_urls?.spotify ?? `https://open.spotify.com/playlist/${playlist.id}`,
-      playlistId: playlist.id,
-    };
-  } catch (error) {
-    console.error("Spotify playlist error:", error);
-    return null;
+  if (!addTracksResponse.ok) {
+    const body = await addTracksResponse.text();
+    console.error("ADD TRACKS ERROR:", body);
+    throw new Error(`Spotify add tracks failed (${addTracksResponse.status}): ${body}`);
   }
+
+  return {
+    playlistUrl: playlist.external_urls?.spotify ?? `https://open.spotify.com/playlist/${playlist.id}`,
+    playlistId: playlist.id,
+  };
 }

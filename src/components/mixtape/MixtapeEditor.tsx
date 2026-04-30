@@ -8,6 +8,7 @@ import { TapeDecoration } from "@/components/TapeDecoration";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useSpotify } from "@/hooks/useSpotify";
 import { supabase } from "@/integrations/supabase/client";
 import {
   deleteMixtape,
@@ -22,6 +23,7 @@ import {
   type MixtapeWithTracks,
 } from "@/lib/mixtape";
 import { previewAudio, searchSpotifyTracks, type SpotifyTrack } from "@/lib/spotify";
+import { createSpotifyPlaylist } from "@/lib/spotifyPlaylist";
 
 const toMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
@@ -49,6 +51,8 @@ export const MixtapeEditor = () => {
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null);
   const [audioState, setAudioState] = useState(previewAudio.getState());
+  const [spotifyReconnectRequired, setSpotifyReconnectRequired] = useState(false);
+  const { connectSpotify, isConnected: spotifyConnected } = useSpotify();
 
   const selectedTrack = useMemo(
     () => draft.tracks.find((track) => track.id === selectedTrackId) ?? null,
@@ -84,6 +88,12 @@ export const MixtapeEditor = () => {
   }, []);
 
   useEffect(() => previewAudio.subscribe(setAudioState), []);
+
+  useEffect(() => {
+    if (spotifyConnected) {
+      setSpotifyReconnectRequired(false);
+    }
+  }, [spotifyConnected]);
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -202,6 +212,47 @@ export const MixtapeEditor = () => {
 
     if (track.spotifyUrl) {
       window.open(track.spotifyUrl, "_blank", "noopener");
+    }
+  };
+
+  const handleSpotifyAction = async () => {
+    if (!spotifyConnected) {
+      try {
+        await connectSpotify();
+      } catch (error) {
+        toast.error(toMessage(error, "Spotify connection could not be started"));
+      }
+      return;
+    }
+
+    if (!draft.tracks.length) {
+      toast.error("Add at least one track before creating a playlist");
+      return;
+    }
+
+    if (!draft.title.trim()) {
+      toast.error("Title is required");
+      return;
+    }
+
+    try {
+      const playlist = await createSpotifyPlaylist({
+        title: draft.title.trim(),
+        description: draft.description?.trim() || null,
+        tracks: normalizeTrackPositions(draft.tracks),
+      });
+      setSpotifyReconnectRequired(false);
+      toast.success("Spotify playlist created");
+      if (playlist.playlistUrl) {
+        setDraft((current) => ({ ...current, spotifyPlaylistUrl: playlist.playlistUrl }));
+      }
+    } catch (error) {
+      const message = toMessage(error, "Spotify playlist creation failed");
+      if (message.includes("Reconnect Spotify")) {
+        setSpotifyReconnectRequired(true);
+      }
+      toast.error(message);
+      console.log("message", message);
     }
   };
 
@@ -348,8 +399,8 @@ export const MixtapeEditor = () => {
                           }}
                           onDragEnd={() => setDraggedTrackId(null)}
                           className={`rounded-[22px] border px-3 py-3 transition-all ${isSelected
-                              ? "border-rose/28 bg-white/88 shadow-paper"
-                              : "border-transparent bg-white/58 hover:bg-white/78"
+                            ? "border-rose/28 bg-white/88 shadow-paper"
+                            : "border-transparent bg-white/58 hover:bg-white/78"
                             }`}
                         >
                           <button
@@ -436,6 +487,18 @@ export const MixtapeEditor = () => {
                 )}
 
                 <div className="mt-6 flex flex-wrap gap-3">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => { void handleSpotifyAction(); }}
+                    className="rounded-full bg-white/60 px-5 font-hand text-xl text-ink hover:bg-white"
+                  >
+                    {spotifyConnected
+                      ? "Create Spotify Playlist"
+                      : spotifyReconnectRequired
+                        ? "Reconnect Spotify"
+                        : "Connect Spotify to create playlist"}
+                  </Button>
                   <Button
                     type="button"
                     onClick={handleSave}
