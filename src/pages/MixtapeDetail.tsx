@@ -76,6 +76,19 @@ const MixtapeDetail = () => {
                     {mixtape.description}
                   </p>
                 )}
+                {mixtape.spotify_playlist_url && (
+                  <div className="mt-8">
+                    <a
+                      href={mixtape.spotify_playlist_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full bg-[#1db954] px-6 py-2.5 font-hand text-2xl text-white transition-transform hover:scale-105"
+                    >
+                      <span className="text-xl">▶</span>
+                      listen on spotify
+                    </a>
+                  </div>
+                )}
               </>
             ) : (
               <p className="mt-6 font-hand text-3xl text-ink-soft">this mixtape could not be found.</p>

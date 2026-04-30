@@ -170,8 +170,33 @@ export const MixtapeEditor = () => {
 
     setSaving(true);
     try {
+      let currentSpotifyPlaylistUrl = draft.spotifyPlaylistUrl;
+
+      // If Spotify is connected, try to create/update the playlist
+      if (spotifyConnected && draft.tracks.length > 0) {
+        try {
+          const playlist = await createSpotifyPlaylist({
+            title: draft.title.trim(),
+            description: draft.description?.trim() || null,
+            tracks: normalizeTrackPositions(draft.tracks),
+            existingPlaylistUrl: draft.spotifyPlaylistUrl,
+          });
+          setSpotifyReconnectRequired(false);
+          if (playlist.playlistUrl) {
+            currentSpotifyPlaylistUrl = playlist.playlistUrl;
+          }
+        } catch (error) {
+          const message = toMessage(error, "Spotify playlist sync failed");
+          if (message.includes("Reconnect Spotify")) {
+            setSpotifyReconnectRequired(true);
+          }
+          toast.error(message);
+        }
+      }
+
       const saved = await saveMixtape({
         ...draft,
+        spotifyPlaylistUrl: currentSpotifyPlaylistUrl,
         tracks: normalizeTrackPositions(draft.tracks),
       });
 
@@ -215,44 +240,11 @@ export const MixtapeEditor = () => {
     }
   };
 
-  const handleSpotifyAction = async () => {
-    if (!spotifyConnected) {
-      try {
-        await connectSpotify();
-      } catch (error) {
-        toast.error(toMessage(error, "Spotify connection could not be started"));
-      }
-      return;
-    }
-
-    if (!draft.tracks.length) {
-      toast.error("Add at least one track before creating a playlist");
-      return;
-    }
-
-    if (!draft.title.trim()) {
-      toast.error("Title is required");
-      return;
-    }
-
+  const handleSpotifyConnect = async () => {
     try {
-      const playlist = await createSpotifyPlaylist({
-        title: draft.title.trim(),
-        description: draft.description?.trim() || null,
-        tracks: normalizeTrackPositions(draft.tracks),
-      });
-      setSpotifyReconnectRequired(false);
-      toast.success("Spotify playlist created");
-      if (playlist.playlistUrl) {
-        setDraft((current) => ({ ...current, spotifyPlaylistUrl: playlist.playlistUrl }));
-      }
+      await connectSpotify();
     } catch (error) {
-      const message = toMessage(error, "Spotify playlist creation failed");
-      if (message.includes("Reconnect Spotify")) {
-        setSpotifyReconnectRequired(true);
-      }
-      toast.error(message);
-      console.log("message", message);
+      toast.error(toMessage(error, "Spotify connection could not be started"));
     }
   };
 
@@ -487,18 +479,18 @@ export const MixtapeEditor = () => {
                 )}
 
                 <div className="mt-6 flex flex-wrap gap-3">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => { void handleSpotifyAction(); }}
-                    className="rounded-full bg-white/60 px-5 font-hand text-xl text-ink hover:bg-white"
-                  >
-                    {spotifyConnected
-                      ? "Create Spotify Playlist"
-                      : spotifyReconnectRequired
+                  {!spotifyConnected && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={handleSpotifyConnect}
+                      className="rounded-full bg-white/60 px-5 font-hand text-xl text-ink hover:bg-white"
+                    >
+                      {spotifyReconnectRequired
                         ? "Reconnect Spotify"
-                        : "Connect Spotify to create playlist"}
-                  </Button>
+                        : "Connect Spotify for Auto-Sync"}
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     onClick={handleSave}

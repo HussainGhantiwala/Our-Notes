@@ -60,8 +60,14 @@ const spotifyRequest = async (input: RequestInfo | URL, init: RequestInit, token
   return response;
 };
 
+export const extractSpotifyPlaylistId = (playlistUrl: string) => {
+  const trimmed = playlistUrl.trim();
+  const match = trimmed.match(/(?:spotify\.com\/playlist\/|spotify:playlist:)([A-Za-z0-9]+)/i);
+  return match?.[1] ?? null;
+};
+
 export async function createSpotifyPlaylist(
-  mixtape: SpotifyPlaylistInput,
+  mixtape: SpotifyPlaylistInput & { existingPlaylistUrl?: string | null },
 ): Promise<SpotifyPlaylistResult> {
   const token = getSpotifyAccessToken();
   if (!token) {
@@ -71,70 +77,78 @@ export async function createSpotifyPlaylist(
   const uris = mixtape.tracks
     .map((track) => buildSpotifyTrackUri(getTrackSpotifyUrl(track)))
     .filter(Boolean);
-  console.log("TRACK URIS:", uris);
 
   if (uris.length === 0) {
     throw new Error("No Spotify track links were found for this mixtape.");
   }
 
-  const meResponse = await spotifyRequest("https://api.spotify.com/v1/me", {}, token);
+  let playlistId = mixtape.existingPlaylistUrl ? extractSpotifyPlaylistId(mixtape.existingPlaylistUrl) : null;
+  let playlistUrl = mixtape.existingPlaylistUrl || "";
 
-  if (!meResponse.ok) {
-    const body = await meResponse.text();
-    throw new Error(`Spotify /me failed (${meResponse.status}): ${body}`);
-  }
-
-  const me = await meResponse.json() as SpotifyCurrentUser;
-
-  const playlistResponse = await spotifyRequest(
-    `https://api.spotify.com/v1/me/playlists`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+  if (playlistId) {
+    // Update existing playlist name and description
+    await spotifyRequest(
+      `https://api.spotify.com/v1/playlists/${playlistId}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: mixtape.title.trim(),
+          description: mixtape.description?.trim() || "",
+        }),
       },
-      body: JSON.stringify({
-        name: mixtape.title.trim(),
-        description: mixtape.description?.trim() || "",
-        public: false,
-      }),
-    },
-    token
-  );
+      token
+    );
 
-  if (!playlistResponse.ok) {
-    const body = await playlistResponse.text();
-    throw new Error(`Spotify playlist creation failed (${playlistResponse.status}): ${body}`);
-  }
-
-  const playlist = await playlistResponse.json() as SpotifyPlaylistResponse;
-
-  const trackIds = mixtape.tracks
-    .map((track) => extractSpotifyTrackId(getTrackSpotifyUrl(track)))
-    .filter(Boolean);
-
-  const addTracksResponse = await spotifyRequest(
-    `https://api.spotify.com/v1/playlists/${playlist.id}/items`, // ✅ NEW
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    // Replace all tracks
+    await spotifyRequest(
+      `https://api.spotify.com/v1/playlists/${playlistId}/items`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uris }),
       },
-      body: JSON.stringify({
-        uris: trackIds.map(id => `spotify:track:${id}`),
-      }),
-    },
-    token
-  );
+      token
+    );
+  } else {
+    // Create new playlist
+    const playlistResponse = await spotifyRequest(
+      `https://api.spotify.com/v1/me/playlists`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: mixtape.title.trim(),
+          description: mixtape.description?.trim() || "",
+          public: false,
+        }),
+      },
+      token
+    );
 
-  if (!addTracksResponse.ok) {
-    const body = await addTracksResponse.text();
-    console.error("ADD TRACKS ERROR:", body);
-    throw new Error(`Spotify add tracks failed (${addTracksResponse.status}): ${body}`);
+    if (!playlistResponse.ok) {
+      const body = await playlistResponse.text();
+      throw new Error(`Spotify playlist creation failed (${playlistResponse.status}): ${body}`);
+    }
+
+    const playlist = await playlistResponse.json() as SpotifyPlaylistResponse;
+    playlistId = playlist.id;
+    playlistUrl = playlist.external_urls?.spotify ?? `https://open.spotify.com/playlist/${playlist.id}`;
+
+    // Add tracks to new playlist
+    await spotifyRequest(
+      `https://api.spotify.com/v1/playlists/${playlistId}/items`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uris }),
+      },
+      token
+    );
   }
 
   return {
-    playlistUrl: playlist.external_urls?.spotify ?? `https://open.spotify.com/playlist/${playlist.id}`,
-    playlistId: playlist.id,
+    playlistUrl,
+    playlistId: playlistId!,
   };
 }

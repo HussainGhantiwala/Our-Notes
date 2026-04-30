@@ -7,106 +7,209 @@ interface MixtapeCassetteProps {
   index?: number;
 }
 
-const palette = [
-  {
-    shell: "linear-gradient(180deg, #f8f1ec 0%, #f2e6df 100%)",
-    label: "linear-gradient(135deg, rgba(255,255,255,0.9), rgba(248,225,223,0.88))",
-    reel: "#e3d5cc",
-    accent: "#d9b7b1",
-  },
-  {
-    shell: "linear-gradient(180deg, #f7f0e6 0%, #efe3d8 100%)",
-    label: "linear-gradient(135deg, rgba(255,255,255,0.88), rgba(245,228,212,0.86))",
-    reel: "#ddcfc0",
-    accent: "#c8b29e",
-  },
-  {
-    shell: "linear-gradient(180deg, #f6efef 0%, #f0e1e6 100%)",
-    label: "linear-gradient(135deg, rgba(255,255,255,0.9), rgba(238,219,226,0.88))",
-    reel: "#dfcdd3",
-    accent: "#c9aab5",
-  },
-];
-
 export const MixtapeCassette = ({ mixtape, index = 0 }: MixtapeCassetteProps) => {
-  const colors = palette[index % palette.length];
   const minutes = estimateMixtapeMinutes(mixtape.tracks.length);
+  const subtitle = mixtape.description?.trim();
+  const tilt = index % 2 === 0 ? -0.85 : 0.85;
+
+  // Base beige/cream color used for the neumorphic design
+  const baseColor = "#EFEAE0";
+  const darkShadow = "#D2C9BB";
+  const lightShadow = "#FFFFFF";
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 18, rotate: index % 2 === 0 ? -1.3 : 1.3 }}
-      animate={{ opacity: 1, y: 0, rotate: index % 2 === 0 ? -0.8 : 0.8 }}
+      initial={{ opacity: 0, y: 18, rotate: tilt + (tilt < 0 ? -0.55 : 0.55) }}
+      animate={{ opacity: 1, y: 0, rotate: tilt }}
       transition={{ duration: 0.45, delay: index * 0.05 }}
-      whileHover={{ scale: 1.02, y: -4 }}
-      className="group relative mx-auto w-full max-w-[380px]"
+      whileHover={{ scale: 1.015, y: -4, rotate: tilt + (tilt < 0 ? -0.2 : 0.2) }}
+      whileTap={{ scale: 0.995, y: -1 }}
+      className="group relative mx-auto w-full max-w-[400px]"
     >
       <Link
         to={`/mixtapes/${mixtape.id}`}
-        className="relative block h-[212px] overflow-hidden rounded-[24px] border border-white/55 p-5 shadow-[0_18px_38px_-24px_rgba(98,74,61,0.48),0_7px_18px_-14px_rgba(98,74,61,0.26)]"
-        style={{ background: colors.shell }}
+        className="relative block h-[256px] overflow-hidden rounded-[28px] p-5 transition-shadow duration-500"
+        style={{
+          background: `linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(210,201,187,0.1) 100%), ${baseColor}`,
+          boxShadow: `
+            16px 16px 32px ${darkShadow}99, 
+            -16px -16px 32px ${lightShadow}, 
+            inset 2px 2px 4px ${lightShadow}88, 
+            inset -2px -2px 4px ${darkShadow}44
+          `,
+        }}
       >
+        {/* Noise overlay for subtle texture */}
         <div
-          className="absolute inset-0 opacity-25"
+          className="absolute inset-0 opacity-[0.02] mix-blend-multiply"
           style={{
             backgroundImage:
-              "radial-gradient(circle at 20% 18%, rgba(255,255,255,0.7), transparent 26%), radial-gradient(circle at 82% 72%, rgba(255,255,255,0.5), transparent 24%), url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.6 0 0 0 0 0.54 0 0 0 0 0.48 0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
+              "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E\")",
+          }}
+        />
+
+        {/* Top left corner highlight */}
+        <div className="absolute inset-0 rounded-[28px] shadow-[inset_1px_1px_1px_rgba(255,255,255,0.9)] pointer-events-none" />
+
+        {/* Cassette Indentations (Top) */}
+        <div
+          className="absolute left-[12%] top-3.5 h-2 w-7 rounded-full"
+          style={{
+            boxShadow: `inset 2px 2px 4px ${darkShadow}88, inset -1px -1px 2px ${lightShadow}`,
+          }}
+        />
+        <div
+          className="absolute left-[16%] top-3.5 h-2 w-2 rounded-full"
+          style={{
+            boxShadow: `inset 2px 2px 4px ${darkShadow}88, inset -1px -1px 2px ${lightShadow}`,
+          }}
+        />
+        <div
+          className="absolute right-[12%] top-3.5 h-2 w-16 rounded-full"
+          style={{
+            boxShadow: `inset 2px 2px 4px ${darkShadow}88, inset -1px -1px 2px ${lightShadow}`,
+          }}
+        />
+
+        {/* Bottom screw holes */}
+        <div
+          className="absolute bottom-4 left-4 h-2.5 w-2.5 rounded-full"
+          style={{
+            boxShadow: `inset 1px 1px 3px ${darkShadow}, inset -1px -1px 2px ${lightShadow}`,
+          }}
+        />
+        <div
+          className="absolute bottom-4 right-4 h-2.5 w-2.5 rounded-full"
+          style={{
+            boxShadow: `inset 1px 1px 3px ${darkShadow}, inset -1px -1px 2px ${lightShadow}`,
           }}
         />
 
         <div className="relative z-10 flex h-full flex-col">
-          <div
-            className="rounded-[18px] border border-white/60 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]"
-            style={{ background: colors.label }}
-          >
-            <p className="font-script text-[2rem] leading-none text-ink">
-              {mixtape.title}
-            </p>
-            <p className="mt-1 font-hand text-xl leading-none text-ink-soft">
-              {mixtape.tracks.length} songs * {minutes} mins
-            </p>
+          {/* REELS SECTION */}
+          <div className="relative mt-3 flex justify-center gap-[72px] px-4 py-2">
+            {[0, 1].map((reel) => (
+              <div
+                key={reel}
+                className={`relative flex h-[90px] w-[90px] items-center justify-center rounded-full transition-transform ease-out ${reel === 0 ? "group-hover:rotate-[25deg]" : "group-hover:-rotate-[25deg]"
+                  }`}
+                style={{
+                  background: baseColor,
+                  boxShadow: `
+                    inset 6px 6px 12px ${darkShadow}aa, 
+                    inset -6px -6px 12px ${lightShadow}, 
+                    1px 1px 2px ${lightShadow}88
+                  `,
+                  transitionDuration: "1600ms",
+                }}
+              >
+                {/* Micro highlight on outer embedded edge */}
+                <div className="absolute inset-0 rounded-full shadow-[inset_1px_1px_1px_rgba(255,255,255,0.7)] pointer-events-none" />
+
+                {/* Dashed ring */}
+                <div className="absolute inset-[20px] rounded-full border-[1.5px] border-dashed border-[#C1B7A6] opacity-70" />
+
+                {/* Center hole recess */}
+                <div
+                  className="relative z-10 flex h-[24px] w-[24px] items-center justify-center rounded-full"
+                  style={{
+                    background: "#E8E2D6",
+                    boxShadow: `
+                      inset 3px 3px 6px ${darkShadow}cc, 
+                      inset -2px -2px 5px ${lightShadow}, 
+                      1px 1px 3px ${lightShadow}cc
+                    `,
+                  }}
+                >
+                  {/* Spindle hole */}
+                  <div
+                    className="h-[8px] w-[8px] rounded-full bg-[#B2A896]"
+                    style={{ boxShadow: "inset 1px 1px 3px rgba(0,0,0,0.15)" }}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
 
-          <div className="mt-5 flex flex-1 items-center justify-between px-2">
-            <div className="relative flex items-center gap-7 pl-3">
-              {[0, 1].map((reel) => (
-                <div
-                  key={reel}
-                  className="relative flex h-12 w-12 items-center justify-center rounded-full border border-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] transition-transform duration-500 group-hover:rotate-180"
-                  style={{ background: colors.reel }}
-                >
-                  <div className="h-4 w-4 rounded-full bg-white/75" />
-                  <div className="absolute h-1 w-8 rounded-full bg-white/65" />
-                  <div className="absolute h-8 w-1 rounded-full bg-white/65" />
-                </div>
-              ))}
+          {/* LABEL SECTION */}
+          <div className="relative z-20 mt-auto">
+            {/* Paper Label */}
+            <div
+              className="relative mx-1 h-[88px] overflow-hidden rounded-[6px] bg-[#FAF8F5] px-6 py-4"
+              style={{
+                transform: "rotate(-0.4deg)",
+                boxShadow: `
+                  0 4px 12px ${darkShadow}44, 
+                  0 1px 3px ${darkShadow}22, 
+                  inset 0 0 0 1px rgba(255,255,255,0.8),
+                  inset 0 0 0 2px rgba(230,224,214,0.3)
+                `,
+              }}
+            >
+              {/* Subtle inner lines like notebook paper */}
               <div
-                className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full"
-                style={{ background: `linear-gradient(90deg, transparent, ${colors.accent}, transparent)` }}
+                className="absolute inset-0 opacity-50"
+                style={{
+                  backgroundImage: `repeating-linear-gradient(180deg, transparent, transparent 25px, #EAE5DC 25px, #EAE5DC 26px)`,
+                }}
               />
+
+              <div className="relative flex h-full items-center justify-between">
+                <div className="flex-1 pr-16">
+                  <h3 className="font-script text-[1.9rem] leading-[1.1] text-[#6D5D4E] truncate">
+                    {mixtape.title}
+                  </h3>
+
+                  {subtitle && (
+                    <p className="mt-2 font-serif text-[0.9rem] italic text-[#968E83] line-clamp-2">
+                      {subtitle}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-end pb-[2px]">
+                  <p className="font-ui text-[9px] font-semibold uppercase tracking-[0.22em] text-[#A69C8F]">
+                    {mixtape.tracks.length} tracks
+                  </p>
+                </div>
+              </div>
             </div>
 
+            {/* PLAY BUTTON (Floating above cassette and label) */}
             <button
               type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1db954] text-white shadow-[0_10px_18px_-12px_rgba(29,185,84,0.6)] transition-transform hover:scale-105"
-              aria-label="Open mixtape"
+              onClick={(e) => {
+                if (mixtape.spotify_playlist_url) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.open(mixtape.spotify_playlist_url, "_blank", "noopener");
+                }
+              }}
+              className={`absolute right-0 bottom-0 translate-x-1/3 translate-y-1/3 
+flex h-[58px] w-[58px] items-center justify-center rounded-full 
+transition-all duration-300
+
+ring-2 ring-[#EFEAE0]
+
+${mixtape.spotify_playlist_url
+                  ? "cursor-pointer hover:scale-105 hover:translate-y-[2px] hover:shadow-[0_12px_30px_rgba(91,102,81,0.35)] active:scale-95"
+                  : "cursor-default opacity-60"
+                }`}
+              style={{
+                background: "#5B6651",
+                boxShadow: `
+      0 10px 20px rgba(0,0,0,0.18),
+      0 4px 10px rgba(0,0,0,0.12),
+      inset 1px 1px 3px rgba(255,255,255,0.25)
+    `,
+              }}
             >
-              <span className="ml-0.5 text-sm">▶</span>
+              <div
+                className="ml-1 h-0 w-0 border-y-[8px] border-y-transparent border-l-[13px] border-l-[#F2EFEA] drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]"
+                aria-hidden="true"
+              />
             </button>
           </div>
-
-          <div className="mt-auto flex items-center justify-between border-t border-ink/8 pt-3">
-            <span className="font-ui text-[11px] uppercase tracking-[0.28em] text-ink-soft/70">
-              {mixtape.tracks.length} songs
-            </span>
-            <span className="font-hand text-xl text-rose">
-              open
-            </span>
-          </div>
-
-          <span className="absolute left-3 top-3 h-2 w-2 rounded-full bg-ink/18" />
-          <span className="absolute right-3 top-3 h-2 w-2 rounded-full bg-ink/18" />
-          <span className="absolute bottom-3 left-3 h-2 w-2 rounded-full bg-ink/18" />
-          <span className="absolute bottom-3 right-3 h-2 w-2 rounded-full bg-ink/18" />
         </div>
       </Link>
     </motion.div>

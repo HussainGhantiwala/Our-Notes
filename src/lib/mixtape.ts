@@ -31,6 +31,7 @@ export interface MixtapeRow {
   id: string;
   title: string;
   description: string | null;
+  spotify_playlist_url: string | null;
   created_at: string;
 }
 
@@ -71,6 +72,7 @@ const mapMixtapeRow = (
   id: row.id,
   title: row.title,
   description: row.description,
+  spotify_playlist_url: row.spotify_playlist_url,
   created_at: row.created_at,
   tracks: mapTrackRows(row.mixtape_tracks),
 });
@@ -108,7 +110,7 @@ export const editorInputFromMixtape = (mixtape: MixtapeWithTracks): MixtapeEdito
   id: mixtape.id,
   title: mixtape.title,
   description: mixtape.description ?? "",
-  spotifyPlaylistUrl: "",
+  spotifyPlaylistUrl: mixtape.spotify_playlist_url ?? "",
   tracks: sortTracks(mixtape.tracks).map(trackDraftFromRow),
 });
 
@@ -171,6 +173,7 @@ export async function saveMixtape(input: MixtapeEditorInput) {
   const payload: TablesInsert<"mixtapes"> = {
     title,
     description: normalizeNullableText(input.description),
+    spotify_playlist_url: normalizeNullableText(input.spotifyPlaylistUrl),
   };
 
   console.log("Saving mixtape payload:", payload);
