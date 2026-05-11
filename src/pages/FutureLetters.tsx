@@ -50,11 +50,8 @@ const FutureLetters = () => {
   }, []);
 
   const open = letters.find((letter) => letter.id === openId);
-  const openViewport = useMemo(
-    () => (open ? getLetterPreviewViewport(open.page_data_json) : null),
-    [open],
-  );
-  const paperWidth = openViewport ? Math.min(openViewport.width + 56, 980) : 760;
+  const openViewport = null;
+  const paperWidth = 700;
 
   return (
     <>
@@ -151,32 +148,25 @@ const FutureLetters = () => {
                 >
                   x
                 </button>
-                <div className="px-5 sm:px-8 pt-6 sm:pt-8 text-center">
+                <div className="px-5 sm:px-8 pt-3 sm:pt-4 text-center">
                   <p className="font-ui text-[9px] sm:text-[10px] tracking-[0.34em] uppercase text-ink-soft/90 mb-1.5 sm:mb-2">
                     {open.subtitle || "for later"}
                   </p>
-                  <h3 className="font-script text-[1.5rem] sm:text-[1.9rem] md:text-[2.2rem] leading-[1.05] text-ink">
+                  <h3 className="font-script text-[1.3rem] sm:text-[1.7rem] md:text-[2rem] leading-none text-ink">
                     {open.title}
                   </h3>
                 </div>
 
-                <div className="px-3 sm:px-5 pt-1.5 sm:pt-2.5">
+                <div className="px-3 sm:px-5 pt-0">
                   <LetterPageCanvas
                     letterId={open.id}
                     pageData={open.page_data_json}
                     readOnly
                     embedded
                     showTape={false}
-                    viewport={openViewport ?? undefined}
+                    viewport={undefined}
                     className="mx-auto"
-                    rootStyle={
-                      openViewport
-                        ? {
-                          width: `min(100%, ${openViewport.width}px)`,
-                          aspectRatio: `${openViewport.width} / ${openViewport.height}`,
-                        }
-                        : undefined
-                    }
+                    rootStyle={{ width: "100%", aspectRatio: "700 / 1100" }}
                     readOnlyBodyPaddingClassName="px-8 pt-12 pb-2 sm:p-12 sm:pt-16"
                     readOnlyBodyTextClassName="font-hand text-[1.05rem] leading-[1.62] text-ink whitespace-pre-wrap sm:text-[1.55rem] sm:leading-relaxed"
                   />
